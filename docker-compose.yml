@@ -15,7 +15,32 @@ services:
         target: /data
     env_file: .env.api
     environment:
-      DATABASE_URL: sqlite:////data/db.sqlite
+      DATABASE_URL: mysql+pymysql://wiseekr:wiseekr654#@db/wiseekr
     restart: always
+  db:
+    image: mariadb:10
+    healthcheck:
+      test:
+        - "CMD"
+        - "mysqladmin"
+        - "ping"
+        - "-h"
+        - "localhost"
+        - "-uroot"
+        - "-pamboss"
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: amboss
+      MARIADB_DATABASE: wiseekr
+      MARIADB_USER: wiseekr
+      MARIADB_PASSWORD: wiseekr654#
+    ports:
+      - 3306:3306
+    volumes:
+      - db_data:/var/lib/mysql
 volumes:
   data:
+  db_data:
