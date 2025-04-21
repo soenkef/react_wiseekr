@@ -1,0 +1,21 @@
+version: '3.2'
+services:
+  frontend:
+    build: .
+    image: react-wiseekr
+    ports:
+      - "8080:80"
+    restart: always
+  api:
+    build: ../wiseekr-api
+    image: wiseekr-api
+    volumes:
+      - type: volume
+        source: data
+        target: /data
+    env_file: .env.api
+    environment:
+      DATABASE_URL: sqlite:////data/db.sqlite
+    restart: always
+volumes:
+  data:
