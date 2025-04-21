@@ -74,6 +74,8 @@ Download Wiseekr API in the folder in which react-wiseekr is saved
 `git clone https://github.com/miguelgrinberg/wiseekr-api.git`
 Use it with .env files in API-folder and react-wiseekr folder!!!!
 
+# project - wiseekr-api
+
 
 # react_wiseekr
 # rename wiseekr-api?
