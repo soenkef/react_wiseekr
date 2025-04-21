@@ -76,3 +76,34 @@ Use it with .env files in API-folder and react-wiseekr folder!!!!
 
 
 # react_wiseekr
+# rename wiseekr-api?
+add files in wiseekr-api for handling other functions in the future
+
+# npm stuff
+npm start 
+npx run build (baut statische files für späteres hosting in build/)
+
+npm install react-router-dom@6 (to fix jest-test)
+npm install --save-dev \
+  @testing-library/react \
+  @testing-library/jest-dom \
+  @testing-library/user-event \
+  @testing-library/dom \
+  jest
+
+
+npm install --save-dev @babel/plugin-proposal-private-property-in-object (to fix warning)
+npm install react-router-dom@6 (downgrade to fix jest-test)
+npx serve -s build (startet applikation lokal im Verzeichnis build)
+
+### rename all microblog stuff to wiseekr
+
+# install and configure mysql/mariadb-server
+sudo apt install mariadb-server
+sudo mysql_secure_installation
+sudo mysql -u root -p
+create database wiseekr character set utf8 collate utf8_bin;
+create user 'wiseekr'@'localhost' identified by '<password>';
+grant all privileges on wiseekr.* to 'wiseekr'@'localhost';
+flush privileges;
+quit;
