@@ -17,7 +17,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "deploy": "npm run build && docker-compose build && docker-compose up -d"
+    "deploy": "npm run build && docker compose build && docker compose up -d"
   },
   "eslintConfig": {
     "extends": [

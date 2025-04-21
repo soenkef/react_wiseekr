@@ -1,60 +1,34 @@
 import { useState } from "react";
-import Body from "../components/Body";
 import Button from "react-bootstrap/Button";
-import Table from "react-bootstrap/Table";
+import Body from "../components/Body";
 import { useApi } from "../contexts/ApiProvider";
-import { useFlash } from "../contexts/FlashProvider";
+import Alert from "react-bootstrap/Alert";
 
 export default function ScanPage() {
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState([]);
   const api = useApi();
-  const flash = useFlash();
+  const [output, setOutput] = useState(null);
+  const [error, setError] = useState(null);
 
-  const startScan = async () => {
-    setLoading(true);
-    setResults([]);
+  const handleScan = async () => {
+    console.log("Scan gestartet");
     const response = await api.post("/scan");
 
     if (response.ok) {
-      setResults(response.body);
-      flash("Scan erfolgreich abgeschlossen.", "success");
+      setOutput(response.body.output);
+      setError(null);
     } else {
-      flash("Scan fehlgeschlagen.", "danger");
+      setError(response.body.error || "Fehler beim Scan");
+      setOutput(null);
     }
-
-    setLoading(false);
   };
 
   return (
     <Body sidebar>
-      <h2>WLAN-Scanner</h2>
-      <Button onClick={startScan} disabled={loading}>
-        {loading ? "Scan läuft..." : "Scan starten"}
-      </Button>
+      <h1>WLAN Scan (Test)</h1>
+      <Button onClick={handleScan}>Scan starten</Button>
 
-      {results.length > 0 && (
-        <Table striped bordered hover className="mt-3">
-          <thead>
-            <tr>
-              <th>BSSID</th>
-              <th>Channel</th>
-              <th>Signal</th>
-              <th>ESSID</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((ap, index) => (
-              <tr key={index}>
-                <td>{ap.bssid}</td>
-                <td>{ap.channel}</td>
-                <td>{ap.signal}</td>
-                <td>{ap.essid}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
+      {output && <Alert variant="success" className="mt-3"><pre>{output}</pre></Alert>}
+      {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
     </Body>
   );
 }

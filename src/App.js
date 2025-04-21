@@ -16,6 +16,7 @@ import EditUserPage from './pages/EditUserPage';
 import ResetRequestPage from './pages/ResetRequestPage';
 import ResetPage from './pages/ResetPage';
 import ScanPage from './pages/ScanPage';
+import ScanStreamPage from './pages/ScanStreamPage';
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
                       <Route path="/user/:username" element={<UserPage />} />
 
                       <Route path="/scan" element={<ScanPage />} />
+                      <Route path="/scan-stream" element={<ScanStreamPage />} />
                       <Route path="/edit" element={<EditUserPage />} />
                       <Route path="/password" element={<ChangePasswordPage />} />
                       <Route path="*" element={<Navigate to="/" />} />
