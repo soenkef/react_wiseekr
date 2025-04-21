@@ -99,4 +99,7 @@ export default class WiseekrApiClient {
     return localStorage.getItem('accessToken') !== null;
   }
 
+  // test API connection for later wiseekr stuff
+  
+
 }

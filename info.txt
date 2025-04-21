@@ -1,26 +1,13 @@
-npm start
-
-# adding components like sidebar, navbar...
-# add new file "Header.js", "Sidebar.js"
-# in src/App.js
-
-# deaktivere Avatare ggf.
-# Bau alles in wifitool...
-# time ago... für wifis, die gefunden wurden, erstellen und anpassen!
 
 # rename wiseekr-api?
-# add files in wiseekr-api for handling other functions in the future
+add files in wiseekr-api for handling other functions in the future
 
-# npx run build (baut statische files für späteres hosting in build/)
+# npm stuff
+npm start 
+npx run build (baut statische files für späteres hosting in build/)
 
-# npm install --save-dev @testing-library/react (install for testing)
-
-# npm install --save-dev @testing-library/jest-dom (to install npm jest for testing)
-
-# npm install react-router-dom@6 (to fix jest-test)
-
-# or:
-# npm install --save-dev \
+npm install react-router-dom@6 (to fix jest-test)
+npm install --save-dev \
   @testing-library/react \
   @testing-library/jest-dom \
   @testing-library/user-event \
@@ -28,18 +15,18 @@ npm start
   jest
 
 
-# npm install --save-dev @babel/plugin-proposal-private-property-in-object (to fix warning)
+npm install --save-dev @babel/plugin-proposal-private-property-in-object (to fix warning)
+npm install react-router-dom@6 (downgrade to fix jest-test)
+npx serve -s build (startet applikation lokal im Verzeichnis build)
 
-# # npx serve -s build (startet applikation lokal im Verzeichnis build)
+### rename all microblog stuff to wiseekr
 
-# rename all microblog stuff to wiseekr
-
-* install and configure mysql/mariadb-server
+# install and configure mysql/mariadb-server
 sudo apt install mariadb-server
 sudo mysql_secure_installation
 sudo mysql -u root -p
 create database wiseekr character set utf8 collate utf8_bin;
-create user 'wiseekr'@'localhost' identified by 'wiseekr654#';
+create user 'wiseekr'@'localhost' identified by '<password>';
 grant all privileges on wiseekr.* to 'wiseekr'@'localhost';
 flush privileges;
 quit;
