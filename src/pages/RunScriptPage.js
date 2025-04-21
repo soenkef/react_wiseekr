@@ -8,7 +8,7 @@ export default function RunScriptPage() {
 
     useEffect(() => {
         (async () => {
-          const response = await api.get('/run-script');
+          const response = await api.get('/run-bash');
           if (response.ok) {
             console.log(response.body.data);
           }
