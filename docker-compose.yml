@@ -1,22 +1,4 @@
-version: '3.2'
 services:
-  frontend:
-    build: .
-    image: react-wiseekr
-    ports:
-      - "8080:80"
-    restart: always
-  api:
-    build: ../wiseekr-api
-    image: wiseekr-api
-    volumes:
-      - type: volume
-        source: data
-        target: /data
-    env_file: .env.api
-    environment:
-      DATABASE_URL: mysql+pymysql://wiseekr:wiseekr654#@db/wiseekr
-    restart: always
   db:
     image: mariadb:10
     healthcheck:
@@ -36,11 +18,37 @@ services:
       MARIADB_ROOT_PASSWORD: amboss
       MARIADB_DATABASE: wiseekr
       MARIADB_USER: wiseekr
-      MARIADB_PASSWORD: wiseekr654#
+      MARIADB_PASSWORD: wiseekr654321!
     ports:
       - 3306:3306
     volumes:
       - db_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+  frontend:
+    build: .
+    image: react-wiseekr
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    restart: always
+  api:
+    build: ../wiseekr-api
+    image: wiseekr-api
+    command: ./boot.sh
+    depends_on:
+      - db
+    volumes:
+      - type: volume
+        source: data
+        target: /data
+    env_file: .env.api
+    environment:
+      FLASK_APP: api.app:create_app
+      FLASK_ENV: development
+      DATABASE_URL: mysql+pymysql://wiseekr:wiseekr654321!@db/wiseekr
+    restart: always
+  
 volumes:
   data:
   db_data:

@@ -26,7 +26,14 @@ sudo apt install mariadb-server
 sudo mysql_secure_installation
 sudo mysql -u root -p
 create database wiseekr character set utf8 collate utf8_bin;
-create user 'wiseekr'@'localhost' identified by '<password>';
+create user 'wiseekr'@'localhost' identified by 'wiseekr654#';
 grant all privileges on wiseekr.* to 'wiseekr'@'localhost';
 flush privileges;
 quit;
+
+# for docker: create init.sql
+CREATE DATABASE IF NOT EXISTS wiseekr CHARACTER SET utf8 COLLATE utf8_bin;
+
+CREATE USER IF NOT EXISTS 'wiseekr'@'%' IDENTIFIED BY 'wiseekr654#';
+GRANT ALL PRIVILEGES ON wiseekr.* TO 'wiseekr'@'%';
+FLUSH PRIVILEGES;
