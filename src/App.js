@@ -15,7 +15,7 @@ import RegistrationPage from './pages/RegistrationPage';
 import EditUserPage from './pages/EditUserPage';
 import ResetRequestPage from './pages/ResetRequestPage';
 import ResetPage from './pages/ResetPage';
-import RunScriptPage from './pages/RunScriptPage';
+import ScanPage from './pages/ScanPage';
 
 export default function App() {
   return (
@@ -45,8 +45,8 @@ export default function App() {
                       <Route path="/explore" element={<ExplorePage />} />
                       <Route path="/user/:username" element={<UserPage />} />
 
+                      <Route path="/scan" element={<ScanPage />} />
                       <Route path="/edit" element={<EditUserPage />} />
-                      <Route path="/run-bash" element={<RunScriptPage />} />
                       <Route path="/password" element={<ChangePasswordPage />} />
                       <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
