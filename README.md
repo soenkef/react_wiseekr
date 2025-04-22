@@ -1,5 +1,7 @@
 # Getting Started with Create React App
 
+# README for react-wiseekr and wiseekr-api here
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
@@ -141,8 +143,61 @@ apt  install network-manager
 # netstat install
 sudo apt install net-tools
 
+
+#################################
+
+
 # steps for installation on ubuntu virtualbox machine
 sudo apt install openssh-server
+
+sudo apt install git npm
+
+# prepare for github actions - create ssh key and save in github
+cd /home/<User>
+ssh-keygen -t ed25519 -C "mantu@gmx.de"
+cat /home/<User>/.ssh/id_ed25519.pub
+git clone git@github.com:soenkef/react_wiseekr-api.git
+git clone git@github.com:soenkef/react_wiseekr.git
+## set up .env -files
+vim /home/<user>/react-wiseekr/.env
+#REACT_APP_BASE_API_URL= # docker-compose runs with .env.production
+REACT_APP_BASE_API_URL='http://localhost:5000'
+
+vim /home/<user>/react-wiseekr/.env.api
+# for docker-compose
+#DATABASE_URL=mysql+pymysql://wiseekr:wiseekr654321@db/wiseekr
+# for local stuff
+DATABASE_URL='mysql+pymysql://wiseekr:wiseekr654321@localhost:3307/wiseekr'
+
+vim /home/<user>/react-wiseekr/.env.production
+# this is for docker environment
+REACT_APP_BASE_API_URL=
+
+vim /home/<user>/react-wiseekr-api/.env
+#DATABASE_URL='mysql+pymysql://wiseekr:wiseekr654@db/wiseekr' # for docker-compose
+DATABASE_URL='mysql+pymysql://wiseekr:wiseekr654321@localhost:3307/wiseekr'
+
+DISABLE_AUTH=false
+MAIL_SERVER=mail.gmx.net
+MAIL_PORT=465
+MAIL_USE_TLS=1
+MAIL_USERNAME=mantu@gmx.de
+MAIL_PASSWORD=G00fys0enke01!
+MAIL_DEFAULT_SENDER=wiseekr@wiseekr.me
+
+
+vim /home/<user>/react-wiseekr-api/.env.api
+DISABLE_AUTH=false
+MAIL_SERVER=mail.gmx.net
+MAIL_PORT=465
+MAIL_USE_TLS=1
+MAIL_USERNAME=mantu@gmx.de
+MAIL_PASSWORD=G00fys0enke01!
+MAIL_DEFAULT_SENDER=wiseekr@wiseekr.me
+
+vim /home/<user>/react-wiseekr-api/.flaskenv
+FLASK_APP=wiseekr.py
+FLASK_DEBUG=1
 
 
 ## docker-added mariadb to docker-compose.yml in wiseekr-api .env
