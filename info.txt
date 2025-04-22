@@ -23,10 +23,18 @@ npx serve -s build (startet applikation lokal im Verzeichnis build)
 
 # install and configure mysql/mariadb-server
 sudo apt install mariadb-server
+### bind to port 3307 - non standard, because docker uses 3306
+sudo vim /etc/mysql/mariadb.conf.d/50-server.cnf
+#### add under [mysqld]
+port = 3307
+
 sudo mysql_secure_installation
-sudo mysql -u root -p
+
+### start mysql-cli
+sudo mysql -u root -p -P 3307 (local)
+sudo mysql -u root -p (under docker)
 create database wiseekr character set utf8 collate utf8_bin;
-create user 'wiseekr'@'localhost' identified by 'wiseekr654#';
+create user 'wiseekr'@'localhost' identified by 'wiseekr654321';
 grant all privileges on wiseekr.* to 'wiseekr'@'localhost';
 flush privileges;
 quit;
@@ -37,3 +45,41 @@ CREATE DATABASE IF NOT EXISTS wiseekr CHARACTER SET utf8 COLLATE utf8_bin;
 CREATE USER IF NOT EXISTS 'wiseekr'@'%' IDENTIFIED BY 'wiseekr654#';
 GRANT ALL PRIVILEGES ON wiseekr.* TO 'wiseekr'@'%';
 FLUSH PRIVILEGES;
+
+# docker container check
+docker exec -it <container-name> bash
+### example
+docker exec -it react-wiseekr-db-1 bash
+
+## docker-added mariadb to docker-compose.yml in wiseekr-api .env
+DATABASE_URL='mysql+pymysql://wiseekr:wiseekr654#@db/wiseekr'
+
+## docker tabularasa
+# Stoppe und entferne alle laufenden Container
+docker ps -aq | xargs -r docker stop
+docker ps -aq | xargs -r docker rm -f
+
+# Entferne alle Images
+docker images -aq | xargs -r docker rmi -f
+
+# Entferne alle Volumes
+docker volume ls -q | xargs -r docker volume rm -f
+
+# Entferne alle Netzwerke (außer default, bridge, host)
+docker network ls -q | xargs -r docker network rm
+
+# Optional: auch Docker Compose-Projekte aufräumen (falls nicht schon durch obiges erledigt)
+docker compose down -v --remove-orphans
+
+## oneliner (kill all volumes including mariadb contents)
+docker stop $(docker ps -aq) 2>/dev/null && \
+docker rm -f $(docker ps -aq) 2>/dev/null && \
+docker rmi -f $(docker images -aq) 2>/dev/null && \
+docker volume rm -f $(docker volume ls -q) 2>/dev/null && \
+docker network rm $(docker network ls -q | grep -v "bridge\|host\|none") 2>/dev/null && \
+docker system prune -a --volumes -f 2>/dev/null
+
+
+# check
+docker system prune -a --volumes -f  # falls noch Reste da sind
+docker info                         # check, ob alles leer ist
