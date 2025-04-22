@@ -88,7 +88,7 @@ add files in wiseekr-api for handling other functions in the future
 # npm stuff
 npm install (to install all dependencies)
 npm start 
-npx run build (baut statische files für späteres hosting in build/)
+npm run build (baut statische files für späteres hosting in build/)
 
 npm install react-router-dom@6 (to fix jest-test)
 npm install --save-dev \
