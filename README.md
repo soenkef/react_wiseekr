@@ -86,6 +86,7 @@ git@github.com:soenkef/react_wiseekr-api.git
 add files in wiseekr-api for handling other functions in the future
 
 # npm stuff
+npm install (to install all dependencies)
 npm start 
 npx run build (baut statische files für späteres hosting in build/)
 
@@ -103,6 +104,8 @@ npm install react-router-dom@6 (downgrade to fix jest-test)
 npx serve -s build (startet applikation lokal im Verzeichnis build)
 
 # FRONTEND-changes saving (here is the docker deployment included)
+
+
 npm run deploy
 
 ### rename all microblog stuff to wiseekr
@@ -202,6 +205,30 @@ FLASK_DEBUG=1
 
 ## docker-added mariadb to docker-compose.yml in wiseekr-api .env
 DATABASE_URL='mysql+pymysql://wiseekr:wiseekr654321@db/wiseekr'
+
+
+# install docker and docker-compose
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+
+
+
+
+######################################################
 
 ## docker tabularasa
 # Stoppe und entferne alle laufenden Container

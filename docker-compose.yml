@@ -33,7 +33,7 @@ services:
       - db
     restart: always
   api:
-    build: ../wiseekr-api
+    build: ../react_wiseekr-api
     image: wiseekr-api
     command: ./boot.sh
     depends_on:
