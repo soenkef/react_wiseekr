@@ -12,7 +12,7 @@ export default function Sidebar() {
                 <Nav.Link as={NavLink} to="/explore">Explore</Nav.Link>
             </Nav.Item>
             <Nav.Item>
-                <Nav.Link as={NavLink} to="/run-script">RunBash</Nav.Link>
+                <Nav.Link as={NavLink} to="/scan-stream">Live WLAN Scan</Nav.Link>
             </Nav.Item>
         </Navbar>
     );
