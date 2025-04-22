@@ -12,7 +12,13 @@ export default function Sidebar() {
                 <Nav.Link as={NavLink} to="/explore">Explore</Nav.Link>
             </Nav.Item>
             <Nav.Item>
-                <Nav.Link as={NavLink} to="/scan-stream">Live WLAN Scan</Nav.Link>
+                <Nav.Link as={NavLink} to="/scans">Scans</Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+                <Nav.Link as={NavLink} to="/scan-results">Wifi</Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+                <Nav.Link as={NavLink} to="/scan-stream">Terminal</Nav.Link>
             </Nav.Item>
         </Navbar>
     );

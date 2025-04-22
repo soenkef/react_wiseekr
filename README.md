@@ -91,6 +91,7 @@ npm start
 npm run build (baut statische files für späteres hosting in build/)
 
 npm install react-router-dom@6 (to fix jest-test)
+npm install react-bootstrap-range-slider
 npm install --save-dev \
   @testing-library/react \
   @testing-library/jest-dom \

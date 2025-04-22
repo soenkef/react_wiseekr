@@ -18,7 +18,7 @@ services:
       MARIADB_ROOT_PASSWORD: amboss
       MARIADB_DATABASE: wiseekr
       MARIADB_USER: wiseekr
-      MARIADB_PASSWORD: <pw>
+      MARIADB_PASSWORD: wiseekr654321!
     ports:
       - 3306:3306
     volumes:
@@ -48,7 +48,7 @@ services:
     environment:
       FLASK_APP: api.app:create_app
       FLASK_ENV: development
-      DATABASE_URL: mysql+pymysql://wiseekr:<pw>@db/wiseekr
+      DATABASE_URL: mysql+pymysql://wiseekr:wiseekr654321!@db/wiseekr
     restart: always
   
 volumes:
