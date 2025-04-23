@@ -15,7 +15,7 @@ export default function Sidebar() {
                 <Nav.Link as={NavLink} to="/scans">Scans</Nav.Link>
             </Nav.Item>
             <Nav.Item>
-                <Nav.Link as={NavLink} to="/scan-results">Wifi</Nav.Link>
+                <Nav.Link as={NavLink} to="/scan-results">Wifi Test</Nav.Link>
             </Nav.Item>
             <Nav.Item>
                 <Nav.Link as={NavLink} to="/scan-stream">Terminal</Nav.Link>

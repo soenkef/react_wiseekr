@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Table from 'react-bootstrap/Table';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
@@ -10,11 +10,9 @@ import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 
-const initialScans = [];
-
 export default function ScanOverviewPage() {
   const [search, setSearch] = useState('');
-  const [scans, setScans] = useState(initialScans);
+  const [scans, setScans] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [scanToDelete, setScanToDelete] = useState(null);
   const [showNewScanModal, setShowNewScanModal] = useState(false);
@@ -24,6 +22,20 @@ export default function ScanOverviewPage() {
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
+
+  const loadScans = useCallback(async () => {
+    const response = await api.get('/scans');
+    if (response.ok) {
+      console.log('API response.body:', response.body);
+      setScans(response.body);
+    } else {
+      console.error('Fehler beim Laden der Scans:', response);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    loadScans();
+  }, [loadScans]);
 
   const handleDeleteClick = (id) => {
     setScanToDelete(id);
@@ -42,17 +54,15 @@ export default function ScanOverviewPage() {
   };
 
   const handleNavigate = (id) => {
-    if (scans.find(scan => scan.id === id)) {
+    console.log('Navigating to scan with id:', id);
+    if (id) {
       navigate(`/scan/${id}`);
     }
   };
 
   const handleNewScanSubmit = async () => {
-    const newId = scans.length + 1;
-    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
     const duration = infinite ? 600 : newScan.duration;
 
-    setScans([...scans, { id: newId, timestamp, aps: 0, clients: 0, ...newScan, duration }]);
     setShowNewScanModal(false);
     flash('Scan wurde gestartet. Bitte hab Geduld.', 'success');
     setNewScan({ name: '', description: '', location: '', duration: 60 });
@@ -73,6 +83,16 @@ export default function ScanOverviewPage() {
     }
   };
 
+  const handleImportClick = async () => {
+    const response = await api.post('/scans/import');
+    if (response.ok) {
+      flash('Scans importiert', 'success');
+      loadScans();
+    } else {
+      flash(response.body?.error || 'Import fehlgeschlagen', 'danger');
+    }
+  };
+
   const filteredScans = scans.filter(scan =>
     Object.values(scan).some(val =>
       val?.toString().toLowerCase().includes(search.toLowerCase())
@@ -83,7 +103,10 @@ export default function ScanOverviewPage() {
     <Body sidebar>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Alle Scans</h2>
-        <Button variant="success" onClick={() => setShowNewScanModal(true)}>Scan</Button>
+        <div className="d-flex gap-2">
+          <Button variant="secondary" onClick={handleImportClick}>Scans importieren</Button>
+          <Button variant="success" onClick={() => setShowNewScanModal(true)}>Scan</Button>
+        </div>
       </div>
 
       <Form.Control
@@ -97,34 +120,36 @@ export default function ScanOverviewPage() {
       <Table striped bordered hover responsive>
         <thead>
           <tr>
-            <th>Name</th>
+            <th>ID</th>
+            <th>Dateiname</th>
             <th>Beschreibung</th>
-            <th>Ort</th>
-            <th>Zeitpunkt</th>
-            <th>Access Points</th>
-            <th>Clients</th>
             <th>Optionen</th>
           </tr>
         </thead>
         <tbody>
-          {filteredScans.map(scan => (
-            <tr key={scan.id}>
-              <td>{scan.name}</td>
-              <td>{scan.description}</td>
-              <td>{scan.location}</td>
-              <td>{scan.timestamp}</td>
-              <td>{scan.aps}</td>
-              <td>{scan.clients}</td>
-              <td>
-                <Button variant="primary" size="sm" onClick={() => handleNavigate(scan.id)}>
-                  Details
-                </Button>{' '}
-                <Button variant="danger" size="sm" onClick={() => handleDeleteClick(scan.id)}>
-                  Löschen
-                </Button>
-              </td>
-            </tr>
-          ))}
+          {filteredScans.map(scan => {
+            console.log('Rendering row for scan:', scan);
+            return (
+              <tr
+                key={scan.id}
+                onClick={(e) => {
+                  if (!e.target.closest('button')) {
+                    handleNavigate(scan.id);
+                  }
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <td>{scan.id}</td>
+                <td>{scan.filename}</td>
+                <td>{scan.description}</td>
+                <td>
+                  <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteClick(scan.id); }}>
+                    Löschen
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
 

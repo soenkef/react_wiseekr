@@ -51,7 +51,7 @@ export default function App() {
 
                       <Route path="/scan-results" element={<ScanResultsPage />} />
                       <Route path="/scans" element={<ScanOverviewPage />} />
-                      <Route path="/scan/:scanId" element={<ScanDetailPage />} /> 
+                      <Route path="/scan/:id" element={<ScanDetailPage />} />
 
                       <Route path="/scan-stream" element={<ScanStreamPage />} />
                       <Route path="/edit" element={<EditUserPage />} />
