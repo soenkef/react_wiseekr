@@ -10,35 +10,7 @@ import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 
-const initialScans = [
-  {
-    id: 1,
-    name: "Scan Café Mitte",
-    description: "Vormittag Testlauf",
-    location: "Berlin Mitte",
-    timestamp: "2025-04-20 10:12",
-    aps: 14,
-    clients: 26
-  },
-  {
-    id: 2,
-    name: "Uni-Netz Gebäude B",
-    description: "Routine Scan",
-    location: "Campus Süd",
-    timestamp: "2025-04-21 09:47",
-    aps: 8,
-    clients: 13
-  },
-  {
-    id: 3,
-    name: "Home-WiFi Test",
-    description: "Wohnung 5 GHz Test",
-    location: "Zuhause",
-    timestamp: "2025-04-18 18:30",
-    aps: 3,
-    clients: 5
-  }
-];
+const initialScans = [];
 
 export default function ScanOverviewPage() {
   const [search, setSearch] = useState('');
@@ -52,7 +24,7 @@ export default function ScanOverviewPage() {
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
-  
+
   const handleDeleteClick = (id) => {
     setScanToDelete(id);
     setShowModal(true);
@@ -76,7 +48,6 @@ export default function ScanOverviewPage() {
   };
 
   const handleNewScanSubmit = async () => {
-
     const newId = scans.length + 1;
     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
     const duration = infinite ? 600 : newScan.duration;
@@ -93,9 +64,11 @@ export default function ScanOverviewPage() {
         setScanOutput(response.body.output || response.body.error || 'Kein Ergebnis erhalten.');
       } else {
         setScanOutput(response.body?.error || 'Unbekannter Fehler beim Scan.');
+        flash(response.body?.error || 'Scan fehlgeschlagen.', 'danger');
       }
     } catch (error) {
       setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
+      flash('Fehler beim Abrufen des Scan-Ergebnisses.', 'danger');
     }
   };
 
@@ -157,17 +130,18 @@ export default function ScanOverviewPage() {
       {scanOutput && (
         <div className="mt-4">
           <h5>Scan-Ausgabe</h5>
-          <pre style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem' }}>{scanOutput}</pre>
+          <pre style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem' }}>
+            {scanOutput}
+          </pre>
         </div>
       )}
 
-      {/* Modal: Scan löschen */}
       <Modal show={showModal} onHide={cancelDelete} centered>
         <Modal.Header closeButton>
           <Modal.Title>Scan löschen</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Bist du sicher, dass du diesen Scan löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.
+          Bist du sicher, dass du diesen Scan löschen möchtest?
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cancelDelete}>Abbrechen</Button>
@@ -175,7 +149,6 @@ export default function ScanOverviewPage() {
         </Modal.Footer>
       </Modal>
 
-      {/* Modal: Scan starten */}
       <Modal show={showNewScanModal} onHide={() => setShowNewScanModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Neuen Scan starten</Modal.Title>
@@ -184,28 +157,40 @@ export default function ScanOverviewPage() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Name</Form.Label>
-              <Form.Control type="text" value={newScan.name} onChange={(e) => setNewScan({...newScan, name: e.target.value})} />
+              <Form.Control
+                type="text"
+                value={newScan.name}
+                onChange={(e) => setNewScan({ ...newScan, name: e.target.value })}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Beschreibung</Form.Label>
-              <Form.Control type="text" value={newScan.description} onChange={(e) => setNewScan({...newScan, description: e.target.value})} />
+              <Form.Control
+                type="text"
+                value={newScan.description}
+                onChange={(e) => setNewScan({ ...newScan, description: e.target.value })}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Ort</Form.Label>
-              <Form.Control type="text" value={newScan.location} onChange={(e) => setNewScan({...newScan, location: e.target.value})} />
+              <Form.Control
+                type="text"
+                value={newScan.location}
+                onChange={(e) => setNewScan({ ...newScan, location: e.target.value })}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Dauer (Sekunden)</Form.Label>
               <div className="d-flex align-items-center gap-3">
                 <RangeSlider
                   value={infinite ? 600 : newScan.duration}
-                  onChange={e => setNewScan({...newScan, duration: parseInt(e.target.value)})}
+                  onChange={e => setNewScan({ ...newScan, duration: parseInt(e.target.value) })}
                   min={10} max={600} step={10}
                   disabled={infinite}
                   tooltip='off'
                 />
-                <Form.Check 
-                  type="checkbox" 
+                <Form.Check
+                  type="checkbox"
                   label="Unendlich"
                   checked={infinite}
                   onChange={e => setInfinite(e.target.checked)}
