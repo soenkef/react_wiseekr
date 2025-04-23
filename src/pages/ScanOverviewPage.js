@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import { useFlash } from '../contexts/FlashProvider';
+import { useApi } from '../contexts/ApiProvider';
 
 const initialScans = [
   {
@@ -47,9 +48,11 @@ export default function ScanOverviewPage() {
   const [showNewScanModal, setShowNewScanModal] = useState(false);
   const [infinite, setInfinite] = useState(false);
   const [newScan, setNewScan] = useState({ name: '', description: '', location: '', duration: 60 });
+  const [scanOutput, setScanOutput] = useState('');
   const navigate = useNavigate();
   const flash = useFlash();
-
+  const api = useApi();
+  
   const handleDeleteClick = (id) => {
     setScanToDelete(id);
     setShowModal(true);
@@ -72,15 +75,28 @@ export default function ScanOverviewPage() {
     }
   };
 
-  const handleNewScanSubmit = () => {
+  const handleNewScanSubmit = async () => {
+
     const newId = scans.length + 1;
     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-    const duration = infinite ? '∞' : newScan.duration;
+    const duration = infinite ? 600 : newScan.duration;
+
     setScans([...scans, { id: newId, timestamp, aps: 0, clients: 0, ...newScan, duration }]);
     setShowNewScanModal(false);
     flash('Scan wurde gestartet. Bitte hab Geduld.', 'success');
     setNewScan({ name: '', description: '', location: '', duration: 60 });
     setInfinite(false);
+
+    try {
+      const response = await api.post('/scan/start', { duration });
+      if (response.ok) {
+        setScanOutput(response.body.output || response.body.error || 'Kein Ergebnis erhalten.');
+      } else {
+        setScanOutput(response.body?.error || 'Unbekannter Fehler beim Scan.');
+      }
+    } catch (error) {
+      setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
+    }
   };
 
   const filteredScans = scans.filter(scan =>
@@ -138,6 +154,14 @@ export default function ScanOverviewPage() {
         </tbody>
       </Table>
 
+      {scanOutput && (
+        <div className="mt-4">
+          <h5>Scan-Ausgabe</h5>
+          <pre style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem' }}>{scanOutput}</pre>
+        </div>
+      )}
+
+      {/* Modal: Scan löschen */}
       <Modal show={showModal} onHide={cancelDelete} centered>
         <Modal.Header closeButton>
           <Modal.Title>Scan löschen</Modal.Title>
@@ -151,6 +175,7 @@ export default function ScanOverviewPage() {
         </Modal.Footer>
       </Modal>
 
+      {/* Modal: Scan starten */}
       <Modal show={showNewScanModal} onHide={() => setShowNewScanModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Neuen Scan starten</Modal.Title>
