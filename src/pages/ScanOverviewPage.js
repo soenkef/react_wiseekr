@@ -61,7 +61,8 @@ export default function ScanOverviewPage() {
     try {
       const response = await api.post('/scan/start', { duration });
       if (response.ok) {
-        setScanOutput(response.body.output || response.body.error || 'Kein Ergebnis erhalten.');
+        setScanOutput(response.body.output || 'Scan abgeschlossen.');
+        flash('Scan successfull', 'success');
       } else {
         setScanOutput(response.body?.error || 'Unbekannter Fehler beim Scan.');
         flash(response.body?.error || 'Scan fehlgeschlagen.', 'danger');
