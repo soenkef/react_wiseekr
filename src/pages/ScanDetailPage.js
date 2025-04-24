@@ -5,6 +5,9 @@ import Card from 'react-bootstrap/Card';
 import Collapse from 'react-bootstrap/Collapse';
 import Button from 'react-bootstrap/Button';
 import Table from 'react-bootstrap/Table';
+import Modal from 'react-bootstrap/Modal';
+import Form from 'react-bootstrap/Form';
+import Spinner from 'react-bootstrap/Spinner';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 
@@ -15,6 +18,12 @@ export default function ScanDetailPage() {
   const flash = useFlash();
   const [scan, setScan] = useState(null);
   const [openMap, setOpenMap] = useState({});
+  const [showModal, setShowModal] = useState(false);
+  const [selectedMac, setSelectedMac] = useState(null);
+  const [isClient, setIsClient] = useState(false);
+  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 60 });
+  const [activeDeauths, setActiveDeauths] = useState({});
+  const [handshakeFiles, setHandshakeFiles] = useState({});
 
   useEffect(() => {
     if (!scanId) {
@@ -38,7 +47,63 @@ export default function ScanDetailPage() {
     setOpenMap((prev) => ({ ...prev, [bssid]: !prev[bssid] }));
   };
 
+  const handleDeauth = (mac, client = false) => {
+    setSelectedMac(mac);
+    setIsClient(client);
+    setShowModal(true);
+  };
+
+  const submitDeauth = async () => {
+    setShowModal(false);
+    flash('Deauth process started...', 'warning');
+    setActiveDeauths((prev) => ({ ...prev, [selectedMac]: true }));
+
+    const response = await api.post('/deauth/start', {
+      mac: selectedMac,
+      is_client: isClient,
+      packets: deauthOptions.packets,
+      duration: deauthOptions.duration,
+      scan_id: scanId
+    });
+
+    setActiveDeauths((prev) => {
+      const updated = { ...prev };
+      delete updated[selectedMac];
+      return updated;
+    });
+
+    if (response.ok) {
+      flash(response.body.message || 'Deauth abgeschlossen.', 'success');
+      if (response.body.success && response.body.file) {
+        setHandshakeFiles((prev) => ({ ...prev, [selectedMac]: response.body.file }));
+      }
+    } else {
+      if (response.body?.error?.toLowerCase().includes('no wifi')) {
+        flash('No wifi component detected.', 'danger');
+      } else {
+        flash(response.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+      }
+    }
+  };
+
   if (!scan) return <Body sidebar><p>Lade Scan-Daten...</p></Body>;
+
+  const renderDeauthStatus = (mac) => (
+    activeDeauths[mac] ? <Spinner animation="border" size="sm" variant="danger" /> : null
+  );
+
+  const renderHandshakeLink = (mac) => (
+    handshakeFiles[mac] ? (
+      <a
+        href={`/scans/${handshakeFiles[mac]}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ms-2 btn btn-sm btn-outline-success"
+      >
+        Handshake
+      </a>
+    ) : null
+  );
 
   return (
     <Body sidebar>
@@ -53,15 +118,20 @@ export default function ScanDetailPage() {
               <div>
                 <strong>{ap.essid || '<Hidden>'}</strong> <small>({ap.bssid})</small> — Kanal {ap.channel}
               </div>
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={() => toggle(ap.bssid)}
-                aria-controls={`collapse-${ap.bssid}`}
-                aria-expanded={openMap[ap.bssid]}
-              >
-                {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
-              </Button>
+              <div className="d-flex gap-2 align-items-center">
+                {renderDeauthStatus(ap.bssid)}
+                <Button variant="danger" size="sm" onClick={() => handleDeauth(ap.bssid, false)}>Deauth AP</Button>
+                {renderHandshakeLink(ap.bssid)}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => toggle(ap.bssid)}
+                  aria-controls={`collapse-${ap.bssid}`}
+                  aria-expanded={openMap[ap.bssid]}
+                >
+                  {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
+                </Button>
+              </div>
             </div>
           </Card.Header>
           <Collapse in={openMap[ap.bssid]}>
@@ -75,6 +145,7 @@ export default function ScanDetailPage() {
                       <th>First Seen</th>
                       <th>Last Seen</th>
                       <th>Probed ESSIDs</th>
+                      <th>Aktion</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -85,6 +156,15 @@ export default function ScanDetailPage() {
                         <td>{client.first_seen}</td>
                         <td>{client.last_seen}</td>
                         <td>{client.probed_essids}</td>
+                        <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>
+                              Deauth
+                            </Button>
+                            {renderDeauthStatus(client.mac)}
+                            {renderHandshakeLink(client.mac)}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -106,6 +186,7 @@ export default function ScanDetailPage() {
                 <th>First Seen</th>
                 <th>Last Seen</th>
                 <th>Probed ESSIDs</th>
+                <th>Aktion</th>
               </tr>
             </thead>
             <tbody>
@@ -116,12 +197,43 @@ export default function ScanDetailPage() {
                   <td>{client.first_seen}</td>
                   <td>{client.last_seen}</td>
                   <td>{client.probed_essids}</td>
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>
+                        Deauth
+                      </Button>
+                      {renderDeauthStatus(client.mac)}
+                      {renderHandshakeLink(client.mac)}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </Table>
         </>
       )}
+
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Deauth starten</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Anzahl Pakete</Form.Label>
+              <Form.Control type="number" min={1} max={9999} value={deauthOptions.packets} onChange={e => setDeauthOptions({ ...deauthOptions, packets: parseInt(e.target.value) })} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Dauer (Sekunden)</Form.Label>
+              <Form.Control type="number" min={10} max={600} value={deauthOptions.duration} onChange={e => setDeauthOptions({ ...deauthOptions, duration: parseInt(e.target.value) })} />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Abbrechen</Button>
+          <Button variant="danger" onClick={submitDeauth}>Deauth starten</Button>
+        </Modal.Footer>
+      </Modal>
     </Body>
   );
 }
