@@ -6,16 +6,13 @@ export default function Sidebar() {
     return (
         <Navbar sticky="top" className="flex-column Sidebar">
             <Nav.Item>
-                <Nav.Link as={NavLink} to="/">Feed</Nav.Link>
+                <Nav.Link as={NavLink} to="/">Wifi</Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+                <Nav.Link as={NavLink} to="/feed">Feed</Nav.Link>
             </Nav.Item>
             <Nav.Item>
                 <Nav.Link as={NavLink} to="/explore">Explore</Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-                <Nav.Link as={NavLink} to="/scans">Scans</Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-                <Nav.Link as={NavLink} to="/scan-results">Wifi Test</Nav.Link>
             </Nav.Item>
             <Nav.Item>
                 <Nav.Link as={NavLink} to="/scan-stream">Terminal</Nav.Link>

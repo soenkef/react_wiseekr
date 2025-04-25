@@ -44,8 +44,9 @@ export default function App() {
                   <Route path="*" element={
                     <PrivateRoute>
                       <Routes>
-                        <Route path="/" element={<FeedPage />} />
+                        <Route path="/" element={<ScanOverviewPage />} />
                         <Route path="/explore" element={<ExplorePage />} />
+                        <Route path="/feed" element={<FeedPage />} />
                         <Route path="/user/:username" element={<UserPage />} />
 
                         <Route path="/scan-results" element={<ScanResultsPage />} />
