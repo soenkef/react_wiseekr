@@ -4,6 +4,7 @@ import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
 import Body from '../components/Body';
+import TimeAgo from '../components/TimeAgo';
 import { useNavigate } from 'react-router-dom';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
@@ -19,19 +20,16 @@ export default function ScanOverviewPage() {
   const [infinite, setInfinite] = useState(false);
   const [newScan, setNewScan] = useState({ name: '', description: '', location: '', duration: 60 });
   const [scanOutput, setScanOutput] = useState('');
+  const [showClearModal, setShowClearModal] = useState(false);
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
-    if (response.ok) {
-      console.log('API response.body:', response.body);
-      setScans(response.body);
-    } else {
-      console.error('Fehler beim Laden der Scans:', response);
-    }
-  }, [api]);
+    if (response.ok) setScans(response.body);
+    else flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
+  }, [api, flash]);
 
   useEffect(() => {
     loadScans();
@@ -53,16 +51,23 @@ export default function ScanOverviewPage() {
     setScanToDelete(null);
   };
 
-  const handleNavigate = (id) => {
-    console.log('Navigating to scan with id:', id);
-    if (id) {
-      navigate(`/scan/${id}`);
+  const handleClearDatabase = async () => {
+    setShowClearModal(false);
+    const response = await api.post('/clear_db');
+    if (response.ok) {
+      flash('Alle Daten wurden erfolgreich gelöscht.', 'success');
+      loadScans();
+    } else {
+      flash(response.body?.error || 'Fehler beim Löschen der Daten.', 'danger');
     }
+  };
+
+  const handleNavigate = (id) => {
+    if (id) navigate(`/scan/${id}`);
   };
 
   const handleNewScanSubmit = async () => {
     const duration = infinite ? 600 : newScan.duration;
-
     setShowNewScanModal(false);
     flash('Scan wurde gestartet. Bitte hab Geduld.', 'success');
     setNewScan({ name: '', description: '', location: '', duration: 60 });
@@ -72,12 +77,12 @@ export default function ScanOverviewPage() {
       const response = await api.post('/scan/start', { duration });
       if (response.ok) {
         setScanOutput(response.body.output || 'Scan abgeschlossen.');
-        flash('Scan successfull', 'success');
+        flash('Scan erfolgreich', 'success');
       } else {
         setScanOutput(response.body?.error || 'Unbekannter Fehler beim Scan.');
         flash(response.body?.error || 'Scan fehlgeschlagen.', 'danger');
       }
-    } catch (error) {
+    } catch {
       setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
       flash('Fehler beim Abrufen des Scan-Ergebnisses.', 'danger');
     }
@@ -94,16 +99,15 @@ export default function ScanOverviewPage() {
   };
 
   const filteredScans = scans.filter(scan =>
-    Object.values(scan).some(val =>
-      val?.toString().toLowerCase().includes(search.toLowerCase())
-    )
+    Object.values(scan).some(val => val?.toString().toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
-    <Body sidebar>
+    <Body>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Alle Scans</h2>
         <div className="d-flex gap-2">
+          <Button variant="danger" onClick={() => setShowClearModal(true)}>Alle Daten löschen</Button>
           <Button variant="secondary" onClick={handleImportClick}>Scans importieren</Button>
           <Button variant="success" onClick={() => setShowNewScanModal(true)}>Scan</Button>
         </div>
@@ -123,55 +127,44 @@ export default function ScanOverviewPage() {
             <th>ID</th>
             <th>Dateiname</th>
             <th>Beschreibung</th>
+            <th>Erstellt am</th>
             <th>Optionen</th>
           </tr>
         </thead>
         <tbody>
-          {filteredScans.map(scan => {
-            console.log('Rendering row for scan:', scan);
-            return (
-              <tr
-                key={scan.id}
-                onClick={(e) => {
-                  if (!e.target.closest('button')) {
-                    handleNavigate(scan.id);
-                  }
-                }}
-                style={{ cursor: 'pointer' }}
-              >
-                <td>{scan.id}</td>
-                <td>{scan.filename}</td>
-                <td>{scan.description}</td>
-                <td>
-                  <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteClick(scan.id); }}>
-                    Löschen
-                  </Button>
-                </td>
-              </tr>
-            );
-          })}
+          {filteredScans.map(scan => (
+            <tr key={scan.id} onClick={(e) => !e.target.closest('button') && handleNavigate(scan.id)} style={{ cursor: 'pointer' }}>
+              <td>{scan.id}</td>
+              <td>{scan.filename}</td>
+              <td>{scan.description}</td>
+              <td>{scan.created_at ? new Date(scan.created_at).toLocaleString() : '–'} (<TimeAgo isoDate={scan.created_at} />)</td>
+              <td>
+                <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteClick(scan.id); }}>Löschen</Button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </Table>
-
-      {scanOutput && (
-        <div className="mt-4">
-          <h5>Scan-Ausgabe</h5>
-          <pre style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem' }}>
-            {scanOutput}
-          </pre>
-        </div>
-      )}
 
       <Modal show={showModal} onHide={cancelDelete} centered>
         <Modal.Header closeButton>
           <Modal.Title>Scan löschen</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          Bist du sicher, dass du diesen Scan löschen möchtest?
-        </Modal.Body>
+        <Modal.Body>Bist du sicher, dass du diesen Scan löschen möchtest?</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cancelDelete}>Abbrechen</Button>
           <Button variant="danger" onClick={confirmDelete}>Löschen</Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showClearModal} onHide={() => setShowClearModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Datenbank löschen</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>Möchtest du wirklich alle Scan-bezogenen Daten löschen?</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowClearModal(false)}>Abbrechen</Button>
+          <Button variant="danger" onClick={handleClearDatabase}>Löschen</Button>
         </Modal.Footer>
       </Modal>
 
@@ -234,6 +227,14 @@ export default function ScanOverviewPage() {
           <Button variant="success" onClick={handleNewScanSubmit}>Scan starten</Button>
         </Modal.Footer>
       </Modal>
+      {scanOutput && (
+        <div className="mt-4">
+          <h5>Scan-Ausgabe</h5>
+          <pre style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem' }}>
+            {scanOutput}
+          </pre>
+        </div>
+      )}
     </Body>
   );
 }

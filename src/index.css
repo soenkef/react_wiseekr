@@ -1,3 +1,4 @@
+/* Standardmodus (Hellmodus) */
 .App {
   padding: 0;
 }
@@ -80,5 +81,72 @@
 }
 
 .Write form {
+  width: 100%;
+}
+
+/* Dark Mode */
+body.dark {
+  background-color: #181818;
+  color: white;
+}
+
+body.dark .Header {
+  border-bottom: 1px solid #444;
+}
+
+body.dark .Sidebar {
+  background-color: #222;
+  border-color: #444;
+}
+
+body.dark .Sidebar a,
+body.dark .dropdown-item,
+body.dark .dropdown-item.active {
+  color: #fff;
+}
+
+body.dark .Sidebar a:hover {
+  background-color: #333;
+}
+
+body.dark .Sidebar .nav-item .active,
+body.dark .dropdown-item.active {
+  background-color: #444;
+}
+
+body.dark .Content {
+  margin-top: 10px;
+}
+
+body.dark .Post {
+  border-bottom: 1px solid #444;
+}
+
+body.dark .Post:hover {
+  background-color: #333;
+}
+
+body.dark .Post a {
+  color: #14c;
+}
+
+body.dark .More {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  text-align: right;
+}
+
+body.dark .InputField {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+body.dark .Write {
+  margin-bottom: 10px;
+  padding: 30px 0px 40px 0px;
+  border-bottom: 1px solid #444;
+}
+
+body.dark .Write form {
   width: 100%;
 }

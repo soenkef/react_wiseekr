@@ -91,7 +91,7 @@ npm start
 npm run build (baut statische files für späteres hosting in build/)
 
 npm install react-router-dom@6 (to fix jest-test)
-npm install react-bootstrap-range-slider
+npm install react-bootstrap-range-slidernpmnp
 npm install --save-dev \
   @testing-library/react \
   @testing-library/jest-dom \
@@ -370,7 +370,7 @@ cli.add_command('db', MigrateCommand)
 if __name__ == '__main__':
     cli()
 
-## export Environment variables - do in boot.sh
+## export Environment variables - do in boot.sh - in venv!
 export FLASK_APP=app:create_app
 export FLASK_ENV=development
 
@@ -386,3 +386,32 @@ flask db init
 flask db stamp head
 flask db migrate -m "initial schema after reset"
 flask db upgrade
+
+# wsl stuff to bind usb device on host pc
+## usbipd installieren by cmd
+winget install --interactive --exact dorssel.usbipd-win
+## get usb-id of device to bind
+usbipd list
+## bind selected usb device no. (possible use bind --force)
+usbipd bind --busid 7-2
+## attach usb-device to wsl
+
+usbipd attach --wsl --busid 7-2 
+## detach usb device
+usbipd detach --busid 7-2
+## list usb devices in wsl
+lsusb
+
+# install alpha (not possible on wsl)
+sudo apt install dkms
+## clone driver
+git clone https://github.com/aircrack-ng/rtl8812au.git
+cd rtl8812au
+sudo make dkms_install
+sudo make dkms_remove
+make && make install
+### additional for raspi
+sudo apt-get install raspberrypi-kernel-headers
+$ sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
+$ sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
+### if get an error: unrecognized command line option ‘-mgeneral-regs-only’
