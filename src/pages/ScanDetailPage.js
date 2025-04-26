@@ -150,6 +150,12 @@ export default function ScanDetailPage() {
                         <td>{ap.channel}</td>
                       </tr>
                       <tr>
+                        <td><strong>Vendor:</strong></td>
+                        <td>{ap.vendor || '–'}</td>
+                        <td><strong>Camera:</strong></td>
+                        <td>{ap.is_camera ? 'Yes' : 'No'}</td>
+                      </tr>
+                      <tr>
                         <td><strong>First Seen:</strong></td>
                         <td>{ap.first_seen ? new Date(ap.first_seen).toLocaleString('de-DE', {
                           day: '2-digit',
@@ -207,6 +213,8 @@ export default function ScanDetailPage() {
                   <thead>
                     <tr>
                       <th>MAC</th>
+                      <th>Vendor</th>
+                      <th>Camera</th>
                       <th>Power</th>
                       <th>First Seen</th>
                       <th>Last Seen</th>
@@ -218,6 +226,8 @@ export default function ScanDetailPage() {
                     {ap.clients.map(client => (
                       <tr key={client.mac}>
                         <td>{client.mac}</td>
+                        <td>{client.vendor || '–'}</td>
+                        <td>{client.is_camera ? 'Yes' : 'No'}</td>
                         <td>{client.power}</td>
                         <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', {
                           day: '2-digit',
@@ -260,6 +270,8 @@ export default function ScanDetailPage() {
             <thead>
               <tr>
                 <th>MAC</th>
+                <th>Vendor</th>
+                <th>Camera</th>
                 <th>Power</th>
                 <th>First Seen</th>
                 <th>Last Seen</th>
@@ -271,6 +283,8 @@ export default function ScanDetailPage() {
               {scan.unlinked_clients.map(client => (
                 <tr key={client.mac}>
                   <td>{client.mac}</td>
+                  <td>{client.vendor || '–'}</td>
+                  <td>{client.is_camera ? 'Yes' : 'No'}</td>
                   <td>{client.power}</td>
                   <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', {
                     day: '2-digit',
