@@ -270,7 +270,7 @@ docker exec -it react-wiseekr-db-1 bash
 docker compose run --rm api flask db stamp head
 docker compose exec api flask db stamp base
 docker compose exec db \
-  mariadb -u root -pamboss wiseekr \
+  mariadb -u root -pamboss \
   -e "DELETE FROM alembic_version;"
 
 
@@ -398,6 +398,7 @@ DROP TABLE alembic_version;
 rm -r migrations/
 flask db init
 flask db stamp head
+flask db stamp base
 flask db migrate -m "initial schema after reset"
 flask db upgrade
 
