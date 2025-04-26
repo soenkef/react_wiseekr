@@ -125,9 +125,9 @@ export default function ScanOverviewPage() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Dateiname</th>
             <th>Beschreibung</th>
             <th>Erstellt am</th>
+            <th>Dateiname</th>
             <th>Optionen</th>
           </tr>
         </thead>
@@ -135,9 +135,9 @@ export default function ScanOverviewPage() {
           {filteredScans.map(scan => (
             <tr key={scan.id} onClick={(e) => !e.target.closest('button') && handleNavigate(scan.id)} style={{ cursor: 'pointer' }}>
               <td>{scan.id}</td>
-              <td>{scan.filename}</td>
               <td>{scan.description}</td>
               <td>{scan.created_at ? new Date(scan.created_at).toLocaleString() : '–'} (<TimeAgo isoDate={scan.created_at} />)</td>
+              <td>{scan.filename}</td>
               <td>
                 <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteClick(scan.id); }}>Löschen</Button>
               </td>

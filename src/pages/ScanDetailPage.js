@@ -17,90 +17,79 @@ export default function ScanDetailPage() {
   const scanId = parseInt(id, 10);
   const api = useApi();
   const flash = useFlash();
+
   const [scan, setScan] = useState(null);
   const [openMap, setOpenMap] = useState({});
-  const [showModal, setShowModal] = useState(false);
+
+  // Deauth state
+  const [showDeauthModal, setShowDeauthModal] = useState(false);
   const [selectedMac, setSelectedMac] = useState(null);
   const [isClient, setIsClient] = useState(false);
   const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 60 });
   const [activeDeauths, setActiveDeauths] = useState({});
   const [handshakeFiles, setHandshakeFiles] = useState({});
 
-  useEffect(() => {
-    if (!scanId) {
-      console.warn('❌ Ungültige oder fehlende Scan-ID aus useParams():', id);
-      return;
-    }
+  // Rescan state
+  const [showRescanModal, setShowRescanModal] = useState(false);
+  const [rescanBssid, setRescanBssid] = useState(null);
+  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 60 });
 
+  useEffect(() => {
     const load = async () => {
-      console.log('📡 Lade Scan-Daten mit ID:', scanId);
       const response = await api.get(`/scans/${scanId}`);
-      if (response.ok) {
-        setScan(response.body);
-      } else {
-        flash(response.body?.error || 'Scan nicht gefunden', 'danger');
-      }
+      if (response.ok) setScan(response.body);
+      else flash(response.body?.error || 'Scan nicht gefunden', 'danger');
     };
-    load();
-  }, [scanId, api, flash, id]);
+    if (scanId) load();
+  }, [scanId, api, flash]);
 
   const toggle = (bssid) => {
-    setOpenMap((prev) => ({ ...prev, [bssid]: !prev[bssid] }));
+    setOpenMap(prev => ({ ...prev, [bssid]: !prev[bssid] }));
   };
 
-  const handleDeauth = (mac, client = false) => {
+  // Deauth handlers
+  const handleDeauth = (mac, client=false) => {
     setSelectedMac(mac);
     setIsClient(client);
-    setShowModal(true);
+    setShowDeauthModal(true);
   };
-
   const submitDeauth = async () => {
-    setShowModal(false);
+    setShowDeauthModal(false);
     flash('Deauth process started...', 'warning');
-    setActiveDeauths((prev) => ({ ...prev, [selectedMac]: true }));
+    setActiveDeauths(prev => ({ ...prev, [selectedMac]: true }));
 
-    const response = await api.post('/deauth/start', {
-      mac: selectedMac,
-      is_client: isClient,
-      packets: deauthOptions.packets,
-      duration: deauthOptions.duration,
-      scan_id: scanId
-    });
-
-    setActiveDeauths((prev) => {
-      const updated = { ...prev };
-      delete updated[selectedMac];
-      return updated;
-    });
-
-    if (response.ok) {
-      flash(response.body.message || 'Deauth abgeschlossen.', 'success');
-      if (response.body.success && response.body.file) {
-        setHandshakeFiles((prev) => ({ ...prev, [selectedMac]: response.body.file }));
-      }
+    const resp = await api.post('/deauth/start', { mac: selectedMac, is_client: isClient, ...deauthOptions, scan_id: scanId });
+    setActiveDeauths(prev => { const u = { ...prev }; delete u[selectedMac]; return u; });
+    if (resp.ok) {
+      flash(resp.body.message || 'Deauth abgeschlossen.', 'success');
+      if (resp.body.success && resp.body.file) setHandshakeFiles(prev => ({ ...prev, [selectedMac]: resp.body.file }));
     } else {
-      flash(response.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+      flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
     }
   };
-
-  if (!scan) return <Body sidebar><p>Lade Scan-Daten...</p></Body>;
-
-  const renderDeauthStatus = (mac) => (
-    activeDeauths[mac] ? <Spinner animation="border" size="sm" variant="danger" /> : null
+  const renderDeauthStatus = mac => activeDeauths[mac] ? <Spinner animation="border" size="sm" variant="danger" /> : null;
+  const renderHandshakeLink = mac => handshakeFiles[mac] && (
+    <a href={`/scans/${handshakeFiles[mac]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">Handshake</a>
   );
 
-  const renderHandshakeLink = (mac) => (
-    handshakeFiles[mac] ? (
-      <a
-        href={`/scans/${handshakeFiles[mac]}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="ms-2 btn btn-sm btn-outline-success"
-      >
-        Handshake
-      </a>
-    ) : null
-  );
+  // Rescan handlers
+  const handleRescan = (bssid) => {
+    setRescanBssid(bssid);
+    setRescanOptions({ description: '', duration: 60 });
+    setShowRescanModal(true);
+  };
+  const submitRescan = async () => {
+    setShowRescanModal(false);
+    flash('Rescan gestartet...', 'info');
+    const resp = await api.post('/scan/rescan', { bssid: rescanBssid, ...rescanOptions });
+    if (resp.ok) flash('Rescan abgeschlossen.', 'success');
+    else flash(resp.body?.error || 'Rescan fehlgeschlagen.', 'danger');
+    // optional: reload detail
+    const reload = await api.get(`/scans/${scanId}`);
+    if (reload.ok) setScan(reload.body);
+  };
+
+  if (!scan) return <Body><p>Lade Scan-Daten...</p></Body>;
 
   return (
     <Body>
@@ -117,15 +106,10 @@ export default function ScanDetailPage() {
               </div>
               <div className="d-flex gap-2 align-items-center">
                 {renderDeauthStatus(ap.bssid)}
-                <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeauth(ap.bssid, false); }}>Deauth AP</Button>
+                <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauth(ap.bssid); }}>Deauth AP</Button>
                 {renderHandshakeLink(ap.bssid)}
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); toggle(ap.bssid); }}
-                  aria-controls={`collapse-${ap.bssid}`}
-                  aria-expanded={openMap[ap.bssid]}
-                >
+                <Button variant="outline-secondary" size="sm" onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>Rescan AP</Button>
+                <Button variant="outline-primary" size="sm" onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}>
                   {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
                 </Button>
               </div>
@@ -298,25 +282,45 @@ export default function ScanDetailPage() {
         </>
       )}
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Deauth starten</Modal.Title>
-        </Modal.Header>
+      {/* Deauth Modal */}
+      <Modal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} centered>
+        <Modal.Header closeButton><Modal.Title>Deauth starten</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Anzahl Pakete</Form.Label>
-              <Form.Control type="number" min={1} max={9999} value={deauthOptions.packets} onChange={e => setDeauthOptions({ ...deauthOptions, packets: parseInt(e.target.value) })} />
+              <Form.Control type="number" min={1} value={deauthOptions.packets} onChange={e => setDeauthOptions(o => ({...o, packets: +e.target.value}))} />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Dauer (Sekunden)</Form.Label>
-              <Form.Control type="number" min={10} max={600} value={deauthOptions.duration} onChange={e => setDeauthOptions({ ...deauthOptions, duration: parseInt(e.target.value) })} />
+              <Form.Label>Dauer (Sek.)</Form.Label>
+              <Form.Control type="number" min={1} value={deauthOptions.duration} onChange={e => setDeauthOptions(o => ({...o, duration: +e.target.value}))} />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Abbrechen</Button>
+          <Button variant="secondary" onClick={() => setShowDeauthModal(false)}>Abbrechen</Button>
           <Button variant="danger" onClick={submitDeauth}>Deauth starten</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Rescan Modal */}
+      <Modal show={showRescanModal} onHide={() => setShowRescanModal(false)} centered>
+        <Modal.Header closeButton><Modal.Title>Rescan Access Point</Modal.Title></Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Beschreibung</Form.Label>
+              <Form.Control type="text" value={rescanOptions.description} onChange={e => setRescanOptions(o => ({...o, description: e.target.value}))} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Dauer (Sek.)</Form.Label>
+              <Form.Control type="number" min={1} value={rescanOptions.duration} onChange={e => setRescanOptions(o => ({...o, duration: +e.target.value}))} />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowRescanModal(false)}>Abbrechen</Button>
+          <Button variant="success" onClick={submitRescan}>Rescan starten</Button>
         </Modal.Footer>
       </Modal>
     </Body>
