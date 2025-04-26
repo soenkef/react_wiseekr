@@ -103,7 +103,7 @@ export default function ScanDetailPage() {
   );
 
   return (
-    <Body sidebar>
+    <Body>
       <h2>Scan: {scan.filename}</h2>
       <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
 
