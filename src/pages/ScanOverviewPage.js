@@ -10,6 +10,8 @@ import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
+import { FiDownload } from 'react-icons/fi';
+import { handleDownload } from '../utils/download';
 
 export default function ScanOverviewPage() {
   const [search, setSearch] = useState('');
@@ -125,9 +127,10 @@ export default function ScanOverviewPage() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Dateiname</th>
-            <th>Beschreibung</th>
             <th>Erstellt am</th>
+            <th>Beschreibung</th>
+            <th>Dateiname</th>
+            <th>Download</th>
             <th>Optionen</th>
           </tr>
         </thead>
@@ -135,9 +138,21 @@ export default function ScanOverviewPage() {
           {filteredScans.map(scan => (
             <tr key={scan.id} onClick={(e) => !e.target.closest('button') && handleNavigate(scan.id)} style={{ cursor: 'pointer' }}>
               <td>{scan.id}</td>
-              <td>{scan.filename}</td>
-              <td>{scan.description}</td>
               <td>{scan.created_at ? new Date(scan.created_at).toLocaleString() : '–'} (<TimeAgo isoDate={scan.created_at} />)</td>
+              <td>{scan.description}</td>
+              <td>{scan.filename}</td>
+              <td>
+                {scan.filename ? (
+                    <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={e => { e.stopPropagation(); handleDownload(scan); }}
+                  >
+                    <FiDownload />
+                  </Button>
+                  
+                  ) : '–'}
+              </td>
               <td>
                 <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteClick(scan.id); }}>Löschen</Button>
               </td>

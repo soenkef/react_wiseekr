@@ -13,7 +13,7 @@ export default function Header() {
     return (
         <Navbar bg="light" sticky="top" className="Header">
             <Container>
-                <Navbar.Brand>Wiseekr</Navbar.Brand>
+                <Navbar.Brand as={NavLink} to="/">Wiseekr</Navbar.Brand>
                 <Nav>
                     {user === undefined ?
                         <Spinner animation="border" />
