@@ -259,6 +259,20 @@ docker network rm $(docker network ls -q | grep -v "bridge\|host\|none") 2>/dev/
 docker system prune -a --volumes -f  # falls noch Reste da sind
 docker info                         # check, ob alles leer ist
 
+# run docker compose
+docker compose build
+docker compose up -d
+
+# open machine bash
+docker exec -it react-wiseekr-db-1 bash
+
+# errors
+docker compose run --rm api flask db stamp head
+docker compose exec api flask db stamp base
+docker compose exec db \
+  mariadb -u root -pamboss wiseekr \
+  -e "DELETE FROM alembic_version;"
+
 
 # wiseekr-api
 
@@ -412,6 +426,8 @@ sudo make dkms_remove
 make && make install
 ### additional for raspi
 sudo apt-get install raspberrypi-kernel-headers
-$ sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
-$ sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
-### if get an error: unrecognized command line option ‘-mgeneral-regs-only’
+sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
+sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
+### if get on arm an error: unrecognized command line option ‘-mgeneral-regs-only’
+export ARCH=arm
+sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf

@@ -23,6 +23,7 @@ export default function ScanOverviewPage() {
   const [newScan, setNewScan] = useState({ name: '', description: '', location: '', duration: 60 });
   const [scanOutput, setScanOutput] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
+  const [importing, setImporting] = useState(false);
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
@@ -55,13 +56,15 @@ export default function ScanOverviewPage() {
 
   const handleClearDatabase = async () => {
     setShowClearModal(false);
+    setImporting(true);
     const response = await api.post('/clear_db');
     if (response.ok) {
       flash('Alle Daten wurden erfolgreich gelöscht.', 'success');
-      loadScans();
+      await loadScans();
     } else {
       flash(response.body?.error || 'Fehler beim Löschen der Daten.', 'danger');
     }
+    setImporting(false);
   };
 
   const handleNavigate = (id) => {
@@ -74,12 +77,13 @@ export default function ScanOverviewPage() {
     flash('Scan wurde gestartet. Bitte hab Geduld.', 'success');
     setNewScan({ name: '', description: '', location: '', duration: 60 });
     setInfinite(false);
-
+    setImporting(true);
     try {
       const response = await api.post('/scan/start', { duration });
       if (response.ok) {
         setScanOutput(response.body.output || 'Scan abgeschlossen.');
         flash('Scan erfolgreich', 'success');
+        await loadScans();
       } else {
         setScanOutput(response.body?.error || 'Unbekannter Fehler beim Scan.');
         flash(response.body?.error || 'Scan fehlgeschlagen.', 'danger');
@@ -88,16 +92,23 @@ export default function ScanOverviewPage() {
       setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
       flash('Fehler beim Abrufen des Scan-Ergebnisses.', 'danger');
     }
+    setImporting(false);
   };
 
   const handleImportClick = async () => {
-    const response = await api.post('/scans/import');
-    if (response.ok) {
-      flash('Scans importiert', 'success');
-      loadScans();
-    } else {
-      flash(response.body?.error || 'Import fehlgeschlagen', 'danger');
+    setImporting(true);
+    try {
+      const response = await api.post('/scans/import');
+      if (response.ok) {
+        flash('Import erfolgreich', 'info');
+                await loadScans();
+      } else {
+        flash(response.body?.error || 'Import fehlgeschlagen', 'danger');
+      }
+    } catch {
+      flash('Import fehlgeschlagen', 'danger');
     }
+    setImporting(false);
   };
 
   const filteredScans = scans.filter(scan =>
@@ -109,9 +120,9 @@ export default function ScanOverviewPage() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Alle Scans</h2>
         <div className="d-flex gap-2">
-          <Button variant="danger" onClick={() => setShowClearModal(true)}>Alle Daten löschen</Button>
-          <Button variant="secondary" onClick={handleImportClick}>Scans importieren</Button>
-          <Button variant="success" onClick={() => setShowNewScanModal(true)}>Scan</Button>
+          <Button variant="danger" onClick={() => setShowClearModal(true)} disabled={importing}>Alle Daten löschen</Button>
+          <Button variant="secondary" onClick={handleImportClick} disabled={importing}>Scans importieren</Button>
+          <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>Scan</Button>
         </div>
       </div>
 

@@ -24,6 +24,13 @@ export default function Header() {
                                     <NavDropdown title={
                                         <Image src={user.avatar_url + '&s=32'} roundedCircle />
                                     } align="end">
+                                        <NavDropdown.Item as={NavLink} to={'/feed'}>
+                                            Feed
+                                        </NavDropdown.Item>
+                                        <NavDropdown.Item as={NavLink} to={'/explore'}>
+                                            Explore
+                                        </NavDropdown.Item>
+                                        <NavDropdown.Divider />
                                         <NavDropdown.Item as={NavLink} to={'/user/' + user.username}>
                                             Profile
                                         </NavDropdown.Item>
