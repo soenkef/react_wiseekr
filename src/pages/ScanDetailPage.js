@@ -11,6 +11,8 @@ import Spinner from 'react-bootstrap/Spinner';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
+import { FiDownload } from 'react-icons/fi';
+import { handleDownload } from '../utils/download';
 
 export default function ScanDetailPage() {
   const { id } = useParams();
@@ -48,7 +50,7 @@ export default function ScanDetailPage() {
   };
 
   // Deauth handlers
-  const handleDeauth = (mac, client=false) => {
+  const handleDeauth = (mac, client = false) => {
     setSelectedMac(mac);
     setIsClient(client);
     setShowDeauthModal(true);
@@ -93,8 +95,26 @@ export default function ScanDetailPage() {
 
   return (
     <Body>
-      <h2>Scan: {scan.filename}</h2>
+      <h4>Scan: {scan.created_at ? new Date(scan.created_at).toLocaleString() : '–'} (<TimeAgo isoDate={scan.created_at} />)</h4>
       <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
+      <p>
+        {scan.filename ? (
+          <>
+            {/* Zeige erst den Dateinamen als String */}
+            {scan.filename}&nbsp;{' '}
+            {/* und dann den Download-Button */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={e => { e.stopPropagation(); handleDownload(scan); }}
+            >
+              Download <FiDownload />
+            </Button>
+          </>
+        ) : '–'}
+      </p>
+
+      <hr />
 
       <h4 className="mt-4">Access Points</h4>
       {scan.access_points.map(ap => (
@@ -112,6 +132,7 @@ export default function ScanDetailPage() {
                 <Button variant="outline-primary" size="sm" onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}>
                   {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
                 </Button>
+
               </div>
             </div>
           </Card.Header>
@@ -252,19 +273,19 @@ export default function ScanDetailPage() {
                   <td>{client.mac}</td>
                   <td>{client.power}</td>
                   <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
                   <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
                   <td>{client.probed_essids}</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
@@ -289,11 +310,11 @@ export default function ScanDetailPage() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Anzahl Pakete</Form.Label>
-              <Form.Control type="number" min={1} value={deauthOptions.packets} onChange={e => setDeauthOptions(o => ({...o, packets: +e.target.value}))} />
+              <Form.Control type="number" min={1} value={deauthOptions.packets} onChange={e => setDeauthOptions(o => ({ ...o, packets: +e.target.value }))} />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Dauer (Sek.)</Form.Label>
-              <Form.Control type="number" min={1} value={deauthOptions.duration} onChange={e => setDeauthOptions(o => ({...o, duration: +e.target.value}))} />
+              <Form.Control type="number" min={1} value={deauthOptions.duration} onChange={e => setDeauthOptions(o => ({ ...o, duration: +e.target.value }))} />
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -310,11 +331,11 @@ export default function ScanDetailPage() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Beschreibung</Form.Label>
-              <Form.Control type="text" value={rescanOptions.description} onChange={e => setRescanOptions(o => ({...o, description: e.target.value}))} />
+              <Form.Control type="text" value={rescanOptions.description} onChange={e => setRescanOptions(o => ({ ...o, description: e.target.value }))} />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Dauer (Sek.)</Form.Label>
-              <Form.Control type="number" min={1} value={rescanOptions.duration} onChange={e => setRescanOptions(o => ({...o, duration: +e.target.value}))} />
+              <Form.Control type="number" min={1} value={rescanOptions.duration} onChange={e => setRescanOptions(o => ({ ...o, duration: +e.target.value }))} />
             </Form.Group>
           </Form>
         </Modal.Body>
