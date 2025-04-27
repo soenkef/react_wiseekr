@@ -432,3 +432,11 @@ sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefil
 ### if get on arm an error: unrecognized command line option ‘-mgeneral-regs-only’
 export ARCH=arm
 sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
+
+# add script for building oui-database file to recognize possible cameras by vendor-id
+## run to build or actualize the oui-database-file
+cd /home/amboss/react_wiseekr-api/oui/
+python3 oui_sum.py
+### further parts of this oui stuff
+/api/utils/camera.py
+/api/utils/oui.py
