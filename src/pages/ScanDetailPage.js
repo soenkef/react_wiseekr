@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Body from '../components/Body';
 import Card from 'react-bootstrap/Card';
 import Collapse from 'react-bootstrap/Collapse';
@@ -17,6 +17,7 @@ import { handleDownload } from '../utils/download';
 export default function ScanDetailPage() {
   const { id } = useParams();
   const scanId = parseInt(id, 10);
+  const navigate = useNavigate();
   const api = useApi();
   const flash = useFlash();
 
@@ -121,24 +122,27 @@ export default function ScanDetailPage() {
 
   return (
     <Body>
-      <h4>Scan: {scan.created_at ? new Date(scan.created_at).toLocaleString() : '–'} (<TimeAgo isoDate={scan.created_at} />)</h4>
-      <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
-      <p>
-        {scan.filename ? (
-          <>
-            {/* Zeige erst den Dateinamen als String */}
-            {scan.filename}&nbsp;{' '}
-            {/* und dann den Download-Button */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={e => { e.stopPropagation(); handleDownload(scan); }}
-            >
-              Download <FiDownload />
-            </Button>
-          </>
-        ) : '–'}
-      </p>
+      <Button variant="primary" className="mb-3" onClick={() => navigate('/scans')}>Übersicht</Button>
+      <Card className="mb-4">
+        <Card.Header>
+          <strong>Scan:</strong> {scan.created_at ? new Date(scan.created_at).toLocaleString('de-DE') : '–'}{' '}
+          {scan.created_at && <TimeAgo isoDate={scan.created_at} />}
+        </Card.Header>
+        <Card.Body>
+          <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
+          <p>
+            <strong>Dateiname:</strong>{' '}
+            {scan.filename ? (
+              <>
+                {scan.filename}{' '}
+                <Button variant="secondary" size="sm" onClick={e => { e.stopPropagation(); handleDownload(scan); }}>
+                  Download <FiDownload />
+                </Button>
+              </>
+            ) : ('–')}
+          </p>
+        </Card.Body>
+      </Card>
 
       <hr />
 
@@ -305,13 +309,13 @@ export default function ScanDetailPage() {
         );
       })}
 
-{scan.unlinked_clients.length > 0 && (
+      {scan.unlinked_clients.length > 0 && (
         <>
           <h4 className="mt-5">Clients ohne Access Point</h4>
           <Table size="sm" striped bordered>
             <thead>
               <tr>
-                {['mac','vendor','is_camera','power','first_seen','last_seen','probed_essids'].map(col => (
+                {['mac', 'vendor', 'is_camera', 'power', 'first_seen', 'last_seen', 'probed_essids'].map(col => (
                   <th key={col} onClick={() => handleUnlinkedSort(col)} style={{ cursor: 'pointer' }}>
                     {col === 'mac' && 'MAC'}
                     {col === 'vendor' && 'Vendor'}
@@ -321,7 +325,7 @@ export default function ScanDetailPage() {
                     {col === 'last_seen' && 'Last Seen'}
                     {col === 'probed_essids' && 'Probed ESSIDs'}
                     {unlinkedSort.column === col && (
-                      unlinkedSort.asc ? <FiArrowUp className="ms-1"/> : <FiArrowDown className="ms-1"/>
+                      unlinkedSort.asc ? <FiArrowUp className="ms-1" /> : <FiArrowDown className="ms-1" />
                     )}
                   </th>
                 ))}
@@ -334,11 +338,11 @@ export default function ScanDetailPage() {
                   <td>{client.mac}</td>
                   <td>{client.vendor || '–'}</td>
                   <td>{client.is_camera
-                    ? <><FiAlertTriangle className="text-warning me-1" title="Kamera erkannt"/>Detected</>
+                    ? <><FiAlertTriangle className="text-warning me-1" title="Kamera erkannt" />Detected</>
                     : 'No'}</td>
                   <td>{client.power}</td>
-                  <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
-                  <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
+                  <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
+                  <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
                   <td>{client.probed_essids}</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
