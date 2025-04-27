@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import Body from '../components/Body';
 import Card from 'react-bootstrap/Card';
@@ -11,7 +11,7 @@ import Spinner from 'react-bootstrap/Spinner';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiDownload, FiAlertTriangle } from 'react-icons/fi';
+import { FiDownload, FiAlertTriangle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
 
 export default function ScanDetailPage() {
@@ -36,6 +36,9 @@ export default function ScanDetailPage() {
   const [rescanBssid, setRescanBssid] = useState(null);
   const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 60 });
 
+  // Sorting state for Unlinked Clients
+  const [unlinkedSort, setUnlinkedSort] = useState({ column: null, asc: true });
+
   useEffect(() => {
     const load = async () => {
       const response = await api.get(`/scans/${scanId}`);
@@ -47,6 +50,29 @@ export default function ScanDetailPage() {
 
   const toggle = (bssid) => {
     setOpenMap(prev => ({ ...prev, [bssid]: !prev[bssid] }));
+  };
+
+  const sortedUnlinked = useMemo(() => {
+    if (!scan) return [];
+    const clients = [...scan.unlinked_clients];
+    const { column, asc } = unlinkedSort;
+    if (!column) return clients;
+    return clients.sort((a, b) => {
+      let valA = a[column] ?? '';
+      let valB = b[column] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return asc ? -1 : 1;
+      if (valA > valB) return asc ? 1 : -1;
+      return 0;
+    });
+  }, [scan, unlinkedSort]);
+
+  const handleUnlinkedSort = (column) => {
+    setUnlinkedSort(prev => ({
+      column,
+      asc: prev.column === column ? !prev.asc : true
+    }));
   };
 
   // Deauth handlers
@@ -279,49 +305,44 @@ export default function ScanDetailPage() {
         );
       })}
 
-      {scan.unlinked_clients.length > 0 && (
+{scan.unlinked_clients.length > 0 && (
         <>
           <h4 className="mt-5">Clients ohne Access Point</h4>
           <Table size="sm" striped bordered>
             <thead>
               <tr>
-                <th>MAC</th>
-                <th>Vendor</th>
-                <th>Camera</th>
-                <th>Power</th>
-                <th>First Seen</th>
-                <th>Last Seen</th>
-                <th>Probed ESSIDs</th>
+                {['mac','vendor','is_camera','power','first_seen','last_seen','probed_essids'].map(col => (
+                  <th key={col} onClick={() => handleUnlinkedSort(col)} style={{ cursor: 'pointer' }}>
+                    {col === 'mac' && 'MAC'}
+                    {col === 'vendor' && 'Vendor'}
+                    {col === 'is_camera' && 'Camera'}
+                    {col === 'power' && 'Power'}
+                    {col === 'first_seen' && 'First Seen'}
+                    {col === 'last_seen' && 'Last Seen'}
+                    {col === 'probed_essids' && 'Probed ESSIDs'}
+                    {unlinkedSort.column === col && (
+                      unlinkedSort.asc ? <FiArrowUp className="ms-1"/> : <FiArrowDown className="ms-1"/>
+                    )}
+                  </th>
+                ))}
                 <th>Aktion</th>
               </tr>
             </thead>
             <tbody>
-              {scan.unlinked_clients.map(client => (
+              {sortedUnlinked.map(client => (
                 <tr key={client.mac}>
                   <td>{client.mac}</td>
                   <td>{client.vendor || '–'}</td>
-                  <td>{client.is_camera ? 'Yes' : 'No'}</td>
+                  <td>{client.is_camera
+                    ? <><FiAlertTriangle className="text-warning me-1" title="Kamera erkannt"/>Detected</>
+                    : 'No'}</td>
                   <td>{client.power}</td>
-                  <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
-                  <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
+                  <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
+                  <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
                   <td>{client.probed_essids}</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>
-                        Deauth
-                      </Button>
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>Deauth</Button>
                       {renderDeauthStatus(client.mac)}
                       {renderHandshakeLink(client.mac)}
                     </div>
