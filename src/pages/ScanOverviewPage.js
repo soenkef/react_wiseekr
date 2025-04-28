@@ -103,7 +103,7 @@ export default function ScanOverviewPage() {
       const response = await api.post('/scans/import');
       if (response.ok) {
         flash('Import erfolgreich', 'info');
-                await loadScans();
+        await loadScans();
       } else {
         flash(response.body?.error || 'Import fehlgeschlagen', 'danger');
       }
@@ -133,7 +133,9 @@ export default function ScanOverviewPage() {
             </Button>
           )}
 
-          <Button variant="secondary" onClick={handleImportClick} disabled={importing}>Scans importieren</Button>
+          {user?.id === 1 && (
+            <Button variant="secondary" onClick={handleImportClick} disabled={importing}>Scans importieren</Button>
+          )}
           <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>Scan</Button>
         </div>
       </div>
@@ -166,15 +168,15 @@ export default function ScanOverviewPage() {
               <td>{scan.filename}</td>
               <td>
                 {scan.filename ? (
-                    <Button
+                  <Button
                     variant="secondary"
                     size="sm"
                     onClick={e => { e.stopPropagation(); handleDownload(scan); }}
                   >
                     <FiDownload />
                   </Button>
-                  
-                  ) : '–'}
+
+                ) : '–'}
               </td>
               <td>
                 <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteClick(scan.id); }}>Löschen</Button>
