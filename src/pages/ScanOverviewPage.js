@@ -10,6 +10,7 @@ import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
+import { useUser } from '../contexts/UserProvider';
 import { FiDownload } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
 
@@ -24,6 +25,7 @@ export default function ScanOverviewPage() {
   const [scanOutput, setScanOutput] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const { user } = useUser();
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
@@ -120,7 +122,17 @@ export default function ScanOverviewPage() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Alle Scans</h2>
         <div className="d-flex gap-2">
-          <Button variant="danger" onClick={() => setShowClearModal(true)} disabled={importing}>Alle Daten löschen</Button>
+
+          {user?.id === 1 && (
+            <Button
+              variant="danger"
+              onClick={() => setShowClearModal(true)}
+              disabled={importing}
+            >
+              Alle Daten löschen
+            </Button>
+          )}
+
           <Button variant="secondary" onClick={handleImportClick} disabled={importing}>Scans importieren</Button>
           <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>Scan</Button>
         </div>
