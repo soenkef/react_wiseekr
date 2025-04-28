@@ -23,7 +23,7 @@ services:
       - 3306:3306
     volumes:
       - db_data:/var/lib/mysql
-      - ./mysql-init:/docker-entrypoint-initdb.d
+      - ./mysql_init:/docker-entrypoint-initdb.d
   frontend:
     build: .
     image: react-wiseekr
@@ -37,7 +37,8 @@ services:
     image: wiseekr-api
     command: ./boot.sh
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
     - "5000:5000"
     volumes:
