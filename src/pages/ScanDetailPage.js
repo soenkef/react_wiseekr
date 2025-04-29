@@ -27,8 +27,8 @@ export default function ScanDetailPage() {
 
   // Deauth state
   const [showDeauthModal, setShowDeauthModal] = useState(false);
-  const [selectedMac, setSelectedMac] = useState(null);
-  const [isClient, setIsClient] = useState(false);
+  const [selectedAp, setSelectedAp] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
   const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 60 });
   const [activeDeauths, setActiveDeauths] = useState({});
   const [handshakeFiles, setHandshakeFiles] = useState({});
@@ -39,7 +39,6 @@ export default function ScanDetailPage() {
   const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 60 });
   const [activeRescans, setActiveRescans] = useState({});
   const [rescanOutputs, setRescanOutputs] = useState({});
-  // Progress state for rescan
   const [rescanProgress, setRescanProgress] = useState(0);
   const [rescanStartTime, setRescanStartTime] = useState(null);
   const [rescanDurationState, setRescanDurationState] = useState(0);
@@ -60,29 +59,29 @@ export default function ScanDetailPage() {
   // Track rescan progress
   useEffect(() => {
     if (rescanStartTime === null) return;
-    const interval = window.setInterval(() => {
+    const id = window.setInterval(() => {
       const elapsed = (Date.now() - rescanStartTime) / 1000;
       const pct = Math.min(100, (elapsed / rescanDurationState) * 100);
       setRescanProgress(pct);
-      if (pct >= 100) window.clearInterval(interval);
+      if (pct >= 100) clearInterval(id);
     }, 500);
-    return () => window.clearInterval(interval);
+    return () => clearInterval(id);
   }, [rescanStartTime, rescanDurationState]);
 
   const toggle = (bssid) => setOpenMap(prev => ({ ...prev, [bssid]: !prev[bssid] }));
 
   const sortedUnlinked = useMemo(() => {
     if (!scan) return [];
-    const clients = [...scan.unlinked_clients];
+    const list = [...scan.unlinked_clients];
     const { column, asc } = unlinkedSort;
-    if (!column) return clients;
-    return clients.sort((a, b) => {
-      let valA = a[column] ?? '';
-      let valB = b[column] ?? '';
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
-      if (valA < valB) return asc ? -1 : 1;
-      if (valA > valB) return asc ? 1 : -1;
+    if (!column) return list;
+    return list.sort((a, b) => {
+      let aVal = a[column] ?? '';
+      let bVal = b[column] ?? '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return asc ? -1 : 1;
+      if (aVal > bVal) return asc ? 1 : -1;
       return 0;
     });
   }, [scan, unlinkedSort]);
@@ -90,23 +89,75 @@ export default function ScanDetailPage() {
   const handleUnlinkedSort = (column) => setUnlinkedSort(prev => ({ column, asc: prev.column === column ? !prev.asc : true }));
 
   // Deauth handlers
-  const handleDeauth = (mac, client = false) => { setSelectedMac(mac); setIsClient(client); setShowDeauthModal(true); };
+  const handleDeauthAp = (bssid) => {
+    setSelectedAp(bssid);
+    setSelectedClient(null);
+    setShowDeauthModal(true);
+  };
+
+  const handleDeauthClient = (bssid, clientMac) => {
+    setSelectedAp(bssid);
+    setSelectedClient(clientMac);
+    setShowDeauthModal(true);
+  };
+
   const submitDeauth = async () => {
     setShowDeauthModal(false);
     flash('Deauth process started...', 'warning');
-    setActiveDeauths(prev => ({ ...prev, [selectedMac]: true }));
-    const resp = await api.post('/deauth/start', { mac: selectedMac, is_client: isClient, ...deauthOptions, scan_id: scanId });
-    setActiveDeauths(prev => { const u = { ...prev }; delete u[selectedMac]; return u; });
+    const key = `${selectedAp}|${selectedClient || 'AP'}`;
+    setActiveDeauths(prev => ({ ...prev, [key]: true }));
+
+    const apInfo = scan.access_points.find(a => a.bssid === selectedAp) || {};
+    const channel = apInfo.channel || 6;
+
+    let endpoint, payload;
+    if (selectedClient) {
+      // Deauthentifiziere Client vom AP
+      endpoint = '/deauth/start_deauth_client';
+      payload = {
+        scan_id: scanId,
+        ap_mac: selectedAp,
+        client_mac: selectedClient,
+        channel,
+        packets: deauthOptions.packets,
+        duration: deauthOptions.duration
+      };
+    } else {
+      // Deauthentifiziere Access Point selbst
+      endpoint = '/deauth/start';
+      payload = {
+        scan_id: scanId,
+        mac: selectedAp,
+        is_client: false,
+        packets: deauthOptions.packets,
+        duration: deauthOptions.duration
+      };
+    }
+
+    const resp = await api.post(endpoint, payload);
+    setActiveDeauths(prev => { const nxt = { ...prev }; delete nxt[key]; return nxt; });
     if (resp.ok) {
       flash(resp.body.message || 'Deauth abgeschlossen.', 'success');
-      if (resp.body.success && resp.body.file) setHandshakeFiles(prev => ({ ...prev, [selectedMac]: resp.body.file }));
-    } else flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+      if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
+    } else {
+      flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+    }
   };
 
-  const renderDeauthStatus = mac => activeDeauths[mac] ? <Spinner animation="border" size="sm" variant="danger" /> : null;
-  const renderHandshakeLink = mac => handshakeFiles[mac] && (
-    <a href={`/scans/${handshakeFiles[mac]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">Handshake</a>
-  );
+
+  const renderDeauthStatus = (bssid, client) => {
+    const key = `${bssid}|${client || 'AP'}`;
+    return activeDeauths[key] ? <Spinner animation="border" size="sm" variant="danger" /> : null;
+  };
+
+  const renderHandshakeLink = (bssid, client) => {
+    const key = `${bssid}|${client || 'AP'}`;
+    return handshakeFiles[key] ? (
+      <a href={`/scans/${handshakeFiles[key]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">
+        Handshake
+      </a>
+    ) : null;
+  };
 
   // Rescan handlers
   const handleRescan = (bssid) => {
@@ -146,7 +197,6 @@ export default function ScanDetailPage() {
   };
 
   if (!scan) return <Body><p>Lade Scan-Daten...</p></Body>;
-
 
   return (
     <Body>
@@ -208,7 +258,7 @@ export default function ScanDetailPage() {
                     </div>
                   )}
                   {renderDeauthStatus(ap.bssid)}
-                  <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauth(ap.bssid); }}>Deauth AP</Button>
+                  <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}>Deauth AP</Button>
                   {renderHandshakeLink(ap.bssid)}
                   <Button variant="outline-secondary" size="sm" disabled={activeRescans[ap.bssid]} onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>
                     {activeRescans[ap.bssid] ? <Spinner animation="border" size="sm" /> : 'Rescan AP'}
@@ -348,7 +398,7 @@ export default function ScanDetailPage() {
                           <td>{client.probed_essids}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2">
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>
+                              <Button variant="outline-danger" size="sm" onClick={() => handleDeauthClient(ap.bssid, client.mac)}>
                                 Deauth
                               </Button>
                               {renderDeauthStatus(client.mac)}
@@ -403,7 +453,7 @@ export default function ScanDetailPage() {
                   <td>{client.probed_essids}</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>Deauth</Button>
+                      
                       {renderDeauthStatus(client.mac)}
                       {renderHandshakeLink(client.mac)}
                     </div>
@@ -436,6 +486,7 @@ export default function ScanDetailPage() {
           <Button variant="danger" onClick={submitDeauth}>Deauth starten</Button>
         </Modal.Footer>
       </Modal>
+
 
       {/* Rescan Modal */}
       <Modal show={showRescanModal} onHide={() => setShowRescanModal(false)} centered>
