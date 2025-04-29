@@ -165,9 +165,10 @@ export default function ScanOverviewPage() {
         <h2>Alle Scans</h2>
         <div className="d-flex gap-2">
 
-          {/* Fortschrittsbalken ganz links, nur während Scan läuft */}
-          {scanStart !== null && (
+           {/* Fortschrittsbalken ganz links, nur während Scan läuft */}
+           {scanStart !== null && (
             <div style={{ width: 200, marginRight: '1rem' }}>
+              <div style={{ fontSize: '0.8rem', textAlign: 'center', marginBottom: '0.25rem' }}>Scan läuft</div>
               <ProgressBar
                 now={progress}
                 label={`${Math.round(progress)} %`}

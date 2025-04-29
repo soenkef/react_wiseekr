@@ -8,6 +8,7 @@ import Table from 'react-bootstrap/Table';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
 import Spinner from 'react-bootstrap/Spinner';
+import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
@@ -36,10 +37,17 @@ export default function ScanDetailPage() {
   const [showRescanModal, setShowRescanModal] = useState(false);
   const [rescanBssid, setRescanBssid] = useState(null);
   const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 60 });
+  const [activeRescans, setActiveRescans] = useState({});
+  const [rescanOutputs, setRescanOutputs] = useState({});
+  // Progress state for rescan
+  const [rescanProgress, setRescanProgress] = useState(0);
+  const [rescanStartTime, setRescanStartTime] = useState(null);
+  const [rescanDurationState, setRescanDurationState] = useState(0);
 
   // Sorting state for Unlinked Clients
   const [unlinkedSort, setUnlinkedSort] = useState({ column: null, asc: true });
 
+  // Load scan details on mount
   useEffect(() => {
     const load = async () => {
       const response = await api.get(`/scans/${scanId}`);
@@ -49,9 +57,19 @@ export default function ScanDetailPage() {
     if (scanId) load();
   }, [scanId, api, flash]);
 
-  const toggle = (bssid) => {
-    setOpenMap(prev => ({ ...prev, [bssid]: !prev[bssid] }));
-  };
+  // Track rescan progress
+  useEffect(() => {
+    if (rescanStartTime === null) return;
+    const interval = window.setInterval(() => {
+      const elapsed = (Date.now() - rescanStartTime) / 1000;
+      const pct = Math.min(100, (elapsed / rescanDurationState) * 100);
+      setRescanProgress(pct);
+      if (pct >= 100) window.clearInterval(interval);
+    }, 500);
+    return () => window.clearInterval(interval);
+  }, [rescanStartTime, rescanDurationState]);
+
+  const toggle = (bssid) => setOpenMap(prev => ({ ...prev, [bssid]: !prev[bssid] }));
 
   const sortedUnlinked = useMemo(() => {
     if (!scan) return [];
@@ -69,33 +87,22 @@ export default function ScanDetailPage() {
     });
   }, [scan, unlinkedSort]);
 
-  const handleUnlinkedSort = (column) => {
-    setUnlinkedSort(prev => ({
-      column,
-      asc: prev.column === column ? !prev.asc : true
-    }));
-  };
+  const handleUnlinkedSort = (column) => setUnlinkedSort(prev => ({ column, asc: prev.column === column ? !prev.asc : true }));
 
   // Deauth handlers
-  const handleDeauth = (mac, client = false) => {
-    setSelectedMac(mac);
-    setIsClient(client);
-    setShowDeauthModal(true);
-  };
+  const handleDeauth = (mac, client = false) => { setSelectedMac(mac); setIsClient(client); setShowDeauthModal(true); };
   const submitDeauth = async () => {
     setShowDeauthModal(false);
     flash('Deauth process started...', 'warning');
     setActiveDeauths(prev => ({ ...prev, [selectedMac]: true }));
-
     const resp = await api.post('/deauth/start', { mac: selectedMac, is_client: isClient, ...deauthOptions, scan_id: scanId });
     setActiveDeauths(prev => { const u = { ...prev }; delete u[selectedMac]; return u; });
     if (resp.ok) {
       flash(resp.body.message || 'Deauth abgeschlossen.', 'success');
       if (resp.body.success && resp.body.file) setHandshakeFiles(prev => ({ ...prev, [selectedMac]: resp.body.file }));
-    } else {
-      flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
-    }
+    } else flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
   };
+
   const renderDeauthStatus = mac => activeDeauths[mac] ? <Spinner animation="border" size="sm" variant="danger" /> : null;
   const renderHandshakeLink = mac => handshakeFiles[mac] && (
     <a href={`/scans/${handshakeFiles[mac]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">Handshake</a>
@@ -105,20 +112,41 @@ export default function ScanDetailPage() {
   const handleRescan = (bssid) => {
     setRescanBssid(bssid);
     setRescanOptions({ description: '', duration: 60 });
+    setRescanDurationState(60);
+    setRescanProgress(0);
+    setRescanStartTime(Date.now());
     setShowRescanModal(true);
   };
   const submitRescan = async () => {
     setShowRescanModal(false);
-    flash('Rescan gestartet...', 'info');
-    const resp = await api.post('/scan/rescan', { bssid: rescanBssid, ...rescanOptions });
-    if (resp.ok) flash('Rescan abgeschlossen.', 'success');
-    else flash(resp.body?.error || 'Rescan fehlgeschlagen.', 'danger');
-    // optional: reload detail
+    flash('Rescan gestartet...', 'success');
+    setActiveRescans(prev => ({ ...prev, [rescanBssid]: true }));
+
+    // Update duration state from options
+    setRescanDurationState(rescanOptions.duration);
+    setRescanStartTime(Date.now());
+    setRescanProgress(0);
+
+    const resp = await api.post(`/scans/${scanId}/scan_ap`, { bssid: rescanBssid, channel: scan.access_points.find(ap => ap.bssid === rescanBssid)?.channel });
+    setActiveRescans(prev => { const u = { ...prev }; delete u[rescanBssid]; return u; });
+    if (resp.ok) {
+      flash('Rescan abgeschlossen.', 'success');
+      setRescanOutputs(prev => ({ ...prev, [rescanBssid]: resp.body.output }));
+    } else {
+      flash(resp.body?.error || 'Rescan fehlgeschlagen.', 'danger');
+      setRescanOutputs(prev => ({ ...prev, [rescanBssid]: resp.body?.error || '' }));
+    }
+    // finalize progress
+    setRescanProgress(100);
+    setRescanStartTime(null);
+
+    // reload data
     const reload = await api.get(`/scans/${scanId}`);
     if (reload.ok) setScan(reload.body);
   };
 
   if (!scan) return <Body><p>Lade Scan-Daten...</p></Body>;
+
 
   return (
     <Body>
@@ -129,6 +157,12 @@ export default function ScanDetailPage() {
           {scan.created_at && <TimeAgo isoDate={scan.created_at} />}
         </Card.Header>
         <Card.Body>
+          {/* Fortschrittsbalken für Rescan */}
+          {rescanStartTime !== null && (
+            <div style={{ width: 200, marginRight: '1rem' }}>
+              <ProgressBar now={rescanProgress} label={`${Math.round(rescanProgress)} %`} animated striped />
+            </div>
+          )}
           <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
           <p>
             <strong>Dateiname:</strong>{' '}
@@ -160,10 +194,25 @@ export default function ScanDetailPage() {
                   </strong>
                 </div>
                 <div className="d-flex gap-2 align-items-center">
+                  {/* Progress for this AP only */}
+                  {rescanBssid === ap.bssid && rescanStartTime !== null && (
+                    <div style={{ width: 100, textAlign: 'center', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
+                      Scan läuft
+                      <ProgressBar
+                        now={rescanProgress}
+                        label={`${Math.round(rescanProgress)} %`}
+                        animated
+                        striped
+                        style={{ height: '1rem', marginTop: '0.25rem' }}
+                      />
+                    </div>
+                  )}
                   {renderDeauthStatus(ap.bssid)}
                   <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauth(ap.bssid); }}>Deauth AP</Button>
                   {renderHandshakeLink(ap.bssid)}
-                  <Button variant="outline-secondary" size="sm" onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>Rescan AP</Button>
+                  <Button variant="outline-secondary" size="sm" disabled={activeRescans[ap.bssid]} onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>
+                    {activeRescans[ap.bssid] ? <Spinner animation="border" size="sm" /> : 'Rescan AP'}
+                  </Button>
                   <Button variant="outline-primary" size="sm" onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}>
                     {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
                   </Button>
@@ -174,6 +223,14 @@ export default function ScanDetailPage() {
               <Card.Body>
                 <Card className="mb-3">
                   <Card.Body>
+                    {rescanOutputs[ap.bssid] != null && (
+                      <div className="mb-3">
+                        <h6>Rescan Ausgabe:</h6>
+                        <pre style={{ background: '#f1f1f1', padding: '0.5rem', borderRadius: '0.25rem' }}>
+                          {rescanOutputs[ap.bssid]}
+                        </pre>
+                      </div>
+                    )}
                     <h5>
                       Access Point Informationen
                       {hasCamClient && <FiAlertTriangle className="text-warning ms-2" />}
@@ -357,6 +414,7 @@ export default function ScanDetailPage() {
           </Table>
         </>
       )}
+
 
       {/* Deauth Modal */}
       <Modal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} centered>
