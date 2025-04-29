@@ -13,6 +13,7 @@ import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { FiDownload } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
+import ProgressBar from 'react-bootstrap/ProgressBar';
 
 export default function ScanOverviewPage() {
   const [search, setSearch] = useState('');
@@ -30,15 +31,40 @@ export default function ScanOverviewPage() {
   const flash = useFlash();
   const api = useApi();
 
+  // für die Fortschrittsanzeige
+  const [progress, setProgress]     = useState(0);
+  const [scanStart, setScanStart]   = useState(null);
+  const [scanDuration, setScanDuration] = useState(0);
+
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
     if (response.ok) setScans(response.body);
     else flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
   }, [api, flash]);
 
+  // lädt die vorhandenen Scans beim Mount
   useEffect(() => {
     loadScans();
   }, [loadScans]);
+
+  // tracked während eines laufenden Scans den Fortschritt
+  useEffect(() => {
+    if (scanStart === null) return;
+
+    const id = window.setInterval(() => {
+      const elapsed = (Date.now() - scanStart) / 1000;           // in Sekunden
+      // explizit in Klammern setzen, um no-mixed-operators zu vermeiden
+      const pct     = Math.min(100, (elapsed / scanDuration) * 100);
+      setProgress(pct);
+      if (pct >= 100) {
+        clearInterval(id);
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(id);
+    };
+  }, [scanStart, scanDuration]);
 
   const handleDeleteClick = (id) => {
     setScanToDelete(id);
@@ -61,7 +87,7 @@ export default function ScanOverviewPage() {
     setImporting(true);
     const response = await api.post('/clear_db');
     if (response.ok) {
-      flash('Alle Daten wurden erfolgreich gelöscht.', 'success');
+      flash('Datenbanken und Dateien wurden erfolgreich gelöscht.', 'success');
       await loadScans();
     } else {
       flash(response.body?.error || 'Fehler beim Löschen der Daten.', 'danger');
@@ -75,13 +101,25 @@ export default function ScanOverviewPage() {
 
   const handleNewScanSubmit = async () => {
     const duration = infinite ? 600 : newScan.duration;
+    const payload = {
+      duration,
+      description: newScan.description,
+      location: newScan.location,
+    };
+
+    // Scan-Start initialisieren
+    setScanDuration(duration);
+    setScanStart(Date.now());
+    setProgress(0);
+
+    //const duration = infinite ? 600 : newScan.duration;
     setShowNewScanModal(false);
-    flash('Scan wurde gestartet. Bitte hab Geduld.', 'success');
-    setNewScan({ name: '', description: '', location: '', duration: 60 });
+    flash('Scan wurde gestartet. Bitte habe etwas Geduld.', 'success');
+    setNewScan({ name: '', description: '', location: '', duration: duration });
     setInfinite(false);
     setImporting(true);
     try {
-      const response = await api.post('/scan/start', { duration });
+      const response = await api.post('/scan/start', payload);
       if (response.ok) {
         setScanOutput(response.body.output || 'Scan abgeschlossen.');
         flash('Scan erfolgreich', 'success');
@@ -93,8 +131,12 @@ export default function ScanOverviewPage() {
     } catch {
       setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
       flash('Fehler beim Abrufen des Scan-Ergebnisses.', 'danger');
+    } finally {
+      // Scan-Ende: Timer stoppen und auf 100 % setzen
+      setProgress(100);
+      setImporting(false);
+      setScanStart(null);
     }
-    setImporting(false);
   };
 
   const handleImportClick = async () => {
@@ -122,6 +164,18 @@ export default function ScanOverviewPage() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Alle Scans</h2>
         <div className="d-flex gap-2">
+
+          {/* Fortschrittsbalken ganz links, nur während Scan läuft */}
+          {scanStart !== null && (
+            <div style={{ width: 200, marginRight: '1rem' }}>
+              <ProgressBar
+                now={progress}
+                label={`${Math.round(progress)} %`}
+                animated
+                striped
+              />
+            </div>
+          )}
 
           {user?.id === 1 && (
             <Button
@@ -215,14 +269,6 @@ export default function ScanOverviewPage() {
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Name</Form.Label>
-              <Form.Control
-                type="text"
-                value={newScan.name}
-                onChange={(e) => setNewScan({ ...newScan, name: e.target.value })}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
               <Form.Label>Beschreibung</Form.Label>
               <Form.Control
                 type="text"
@@ -267,7 +313,8 @@ export default function ScanOverviewPage() {
           <Button variant="success" onClick={handleNewScanSubmit}>Scan starten</Button>
         </Modal.Footer>
       </Modal>
-      {scanOutput && (
+
+      {user?.id === 1 && scanOutput && (
         <div className="mt-4">
           <h5>Scan-Ausgabe</h5>
           <pre style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem' }}>
@@ -275,6 +322,11 @@ export default function ScanOverviewPage() {
           </pre>
         </div>
       )}
+
+
+
+
+
     </Body>
   );
 }
