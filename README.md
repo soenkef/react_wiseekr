@@ -433,7 +433,19 @@ sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefil
 export ARCH=arm
 sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
 
-# add script for building oui-database file to recognize possible cameras by vendor-id
+# alfa wifi stick should set up with fix wifi interface name wlan0 00:c0:ca:b0:2c:64
+sudo vim /etc/udev/rules.d/10-wlan.rules
+# paste following line
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="00:c0:ca:b0:2c:64", NAME="wlan0"
+sudo udevadm control --reload
+sudo udevadm trigger --subsystem-match=net
+
+# hcxpcapngtool install to check if cap contains EAPOL data
+sudo apt install hcxtools
+
+
+
+# add script for building oui-database file to recognize possible cameras by vendor-id by mac address
 ## run to build or actualize the oui-database-file
 cd /home/amboss/react_wiseekr-api/oui/
 python3 oui_sum.py

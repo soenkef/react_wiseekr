@@ -118,7 +118,7 @@ export default function ScanDetailPage() {
         scan_id: scanId,
         ap_mac: selectedAp,
         client_mac: selectedClient,
-        channel,
+        channel: channel,
         packets: deauthOptions.packets,
         duration: deauthOptions.duration
       };
@@ -128,6 +128,7 @@ export default function ScanDetailPage() {
       payload = {
         scan_id: scanId,
         mac: selectedAp,
+        channel: channel,
         is_client: false,
         packets: deauthOptions.packets,
         duration: deauthOptions.duration
@@ -401,8 +402,8 @@ export default function ScanDetailPage() {
                               <Button variant="outline-danger" size="sm" onClick={() => handleDeauthClient(ap.bssid, client.mac)}>
                                 Deauth
                               </Button>
-                              {renderDeauthStatus(client.mac)}
-                              {renderHandshakeLink(client.mac)}
+                              {renderDeauthStatus(ap.bssid, client.mac)}
+                              {renderHandshakeLink(ap.bssid, client.mac)}
                             </div>
                           </td>
                         </tr>
