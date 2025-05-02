@@ -385,7 +385,7 @@ if __name__ == '__main__':
     cli()
 
 ## export Environment variables - do in boot.sh - in venv!
-export FLASK_APP=app:create_app
+export FLASK_APP=api.app:create_app
 export FLASK_ENV=development
 
 ## remove migrations folder
@@ -441,6 +441,8 @@ sudo udevadm control --reload
 sudo udevadm trigger --subsystem-match=net
 
 # hcxpcapngtool install to check if cap contains EAPOL data
+# Example:
+hcxpcapngtool -o handshakes.hccapx /home/amboss/react_wiseekr-api/scans/handshake_scan_d50503b902134e42a3014f6a037baf8f.cap
 sudo apt install hcxtools
 
 
