@@ -40,6 +40,9 @@ export default function Header() {
                                         <NavDropdown.Item onClick={logout}>
                                             Logout
                                         </NavDropdown.Item>
+                                        <NavDropdown.Item as={NavLink} to={'/settings'}>
+                                            Settings
+                                        </NavDropdown.Item>
                                     </NavDropdown>
                                 </div>
                             }

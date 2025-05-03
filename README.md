@@ -386,7 +386,7 @@ if __name__ == '__main__':
 
 ## export Environment variables - do in boot.sh - in venv!
 export FLASK_APP=api.app:create_app
-export FLASK_ENV=development
+export FLASK_ENV=developmentflas
 
 ## remove migrations folder
 rm -rf migrations/
@@ -445,6 +445,9 @@ sudo udevadm trigger --subsystem-match=net
 hcxpcapngtool -o handshakes.hccapx /home/amboss/react_wiseekr-api/scans/handshake_scan_d50503b902134e42a3014f6a037baf8f.cap
 sudo apt install hcxtools
 
+# to connect to wifi as client
+sudo systemctl start NetworkManager
+sudo systemctl enable NetworkManager
 
 
 # add script for building oui-database file to recognize possible cameras by vendor-id by mac address

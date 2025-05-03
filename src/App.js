@@ -19,6 +19,7 @@ import ScanStreamPage from './pages/ScanStreamPage';
 import ScanResultsPage from './pages/ScanResultsPage';
 import ScanOverviewPage from './pages/ScanOverviewPage';
 import ScanDetailPage from './pages/ScanDetailPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -56,6 +57,7 @@ export default function App() {
                         <Route path="/scan-stream" element={<ScanStreamPage />} />
                         <Route path="/edit" element={<EditUserPage />} />
                         <Route path="/password" element={<ChangePasswordPage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
                     </PrivateRoute>
