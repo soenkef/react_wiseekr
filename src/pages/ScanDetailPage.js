@@ -261,6 +261,11 @@ export default function ScanDetailPage() {
                   {renderDeauthStatus(ap.bssid)}
                   <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}>Deauth AP</Button>
                   {renderHandshakeLink(ap.bssid)}
+                  {handshakeFiles[`${ap.bssid}|AP`] && (
+                    <span className="ms-2 text-success">
+                      Handshake captured!
+                    </span>
+                  )}
                   <Button variant="outline-secondary" size="sm" disabled={activeRescans[ap.bssid]} onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>
                     {activeRescans[ap.bssid] ? <Spinner animation="border" size="sm" /> : 'Rescan AP'}
                   </Button>
@@ -282,10 +287,34 @@ export default function ScanDetailPage() {
                         </pre>
                       </div>
                     )}
-                    <h5>
-                      Access Point Informationen
-                      {hasCamClient && <FiAlertTriangle className="text-warning ms-2" />}
-                    </h5>
+                    <h5>Access Point Informationen</h5>
+
+                    {/* Handshake-Download-Links unterhalb der Überschrift */}
+                    {(() => {
+                      // sammle alle Keys für diesen AP (AP-Handshake + Client-Handshakes)
+                      const keys = Object.keys(handshakeFiles)
+                        .filter(key => key.startsWith(`${ap.bssid}|`));
+                      if (keys.length === 0) return null;
+                      return (
+                        <div className="mb-3">
+                          {keys.map(key => {
+                            const file = handshakeFiles[key];
+                            return (
+                              <a
+                                key={key}
+                                href={`/scans/${file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-success me-2"
+                              >
+                                Handshake herunterladen ({file})
+                              </a>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
                     <Table size="sm" borderless className="mb-0">
                       <tbody>
                         <tr>
@@ -404,6 +433,11 @@ export default function ScanDetailPage() {
                               </Button>
                               {renderDeauthStatus(ap.bssid, client.mac)}
                               {renderHandshakeLink(ap.bssid, client.mac)}
+                              {handshakeFiles[`${ap.bssid}|${client.mac}`] && (
+                                <span className="ms-2 text-success">
+                                  Handshake captured!
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -454,7 +488,7 @@ export default function ScanDetailPage() {
                   <td>{client.probed_essids}</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      
+
                       {renderDeauthStatus(client.mac)}
                       {renderHandshakeLink(client.mac)}
                     </div>
