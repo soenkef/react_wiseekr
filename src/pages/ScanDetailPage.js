@@ -56,6 +56,30 @@ export default function ScanDetailPage() {
     if (scanId) load();
   }, [scanId, api, flash]);
 
+  useEffect(() => {
+    if (!scan) return;
+  
+    // baue ein Mapping key->file aus dem geladenen scan
+    const hf = {};
+    scan.access_points.forEach(ap => {
+      if (ap.handshake_file) {
+        hf[`${ap.bssid}|AP`] = ap.handshake_file;
+      }
+      ap.clients.forEach(c => {
+        if (c.handshake_file) {
+          hf[`${ap.bssid}|${c.mac}`] = c.handshake_file;
+        }
+      });
+    });
+    scan.unlinked_clients.forEach(c => {
+      if (c.handshake_file) {
+        hf[c.mac] = c.handshake_file;
+      }
+    });
+  
+    setHandshakeFiles(hf);
+  }, [scan]);
+
   // Track rescan progress
   useEffect(() => {
     if (rescanStartTime === null) return;
