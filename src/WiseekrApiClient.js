@@ -39,6 +39,7 @@ export default class WiseekrApiClient {
           ...options.headers,
         },
         credentials: options.url === '/tokens' ? 'include' : 'omit',
+        //credentials: 'include',
         body: options.body ? JSON.stringify(options.body) : null,
       });
     }

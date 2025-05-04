@@ -12,13 +12,14 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiAlertTriangle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
 import ScanHeader from '../components/ScanHeader';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ListGroup from 'react-bootstrap/ListGroup';
+import Dropdown from 'react-bootstrap/Dropdown';
 
 export default function ScanDetailPage() {
   const { id } = useParams();
@@ -29,6 +30,9 @@ export default function ScanDetailPage() {
 
   const [scan, setScan] = useState(null);
   const [openMap, setOpenMap] = useState({});
+
+  // Sorting for access_points
+  const [apSort, setApSort] = useState({ field: null, asc: true });
 
   // Deauth state
   const [showDeauthModal, setShowDeauthModal] = useState(false);
@@ -117,6 +121,33 @@ export default function ScanDetailPage() {
   }, [scan, unlinkedSort]);
 
   const handleUnlinkedSort = (column) => setUnlinkedSort(prev => ({ column, asc: prev.column === column ? !prev.asc : true }));
+
+  // Filter button handler
+  const handleSortSelect = (field) => {
+    setApSort(prev => ({
+      field,
+      asc: prev.field === field ? !prev.asc : true
+    }));
+  };
+
+  // Sorted access_points
+  const sortedAPs = useMemo(() => {
+    if (!scan) return [];
+    const list = [...scan.access_points];
+    const { field, asc } = apSort;
+    if (!field) return list;
+    return list.sort((a, b) => {
+      let av = a[field] ?? '';
+      let bv = b[field] ?? '';
+      if (field === 'last_seen') {
+        av = a.last_seen ? new Date(a.last_seen).getTime() : 0;
+        bv = b.last_seen ? new Date(b.last_seen).getTime() : 0;
+      }
+      if (av < bv) return asc ? -1 : 1;
+      if (av > bv) return asc ? 1 : -1;
+      return 0;
+    });
+  }, [scan, apSort]);
 
   // Deauth handlers
   const handleDeauthAp = (bssid) => {
@@ -236,11 +267,30 @@ export default function ScanDetailPage() {
         scan={scan}
         onDownload={() => handleDownload(scan)}
       />
+      <div className="d-flex justify-content-between align-items-center mt-4">
+        <h4>Access Points</h4>
+        <Dropdown as={ButtonGroup}>
+          <Button variant="outline-secondary" size="sm">
+            <FiFilter /> Sortieren
+          </Button>
+          <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="sm" />
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => handleSortSelect('power')}>
+              Power {apSort.field==='power' && (apSort.asc? '↑':'↓')}
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleSortSelect('vendor')}>
+              Vendor {apSort.field==='vendor' && (apSort.asc? '↑':'↓')}
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleSortSelect('last_seen')}>
+              Last Seen {apSort.field==='last_seen' && (apSort.asc? '↑':'↓')}
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
+
 
       <hr />
-
-      <h4 className="mt-4">Access Points</h4>
-      {scan.access_points.map(ap => {
+      {sortedAPs.map(ap => {
         const hasCamClient = ap.clients.some(c => c.is_camera);
         return (
           <Card key={ap.bssid} className="mb-2">

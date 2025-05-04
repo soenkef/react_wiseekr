@@ -348,6 +348,7 @@ Run the application with the Flask development web server:
 
 ```bash
 flask run
+flask run --host=0.0.0.0 --port=5000
 ```
 
 The application runs on `localhost:5000`. You can access the API documentation
