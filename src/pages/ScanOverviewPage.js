@@ -22,7 +22,7 @@ export default function ScanOverviewPage() {
   const [scanToDelete, setScanToDelete] = useState(null);
   const [showNewScanModal, setShowNewScanModal] = useState(false);
   const [infinite, setInfinite] = useState(false);
-  const [newScan, setNewScan] = useState({ name: '', description: '', location: '', duration: 60 });
+  const [newScan, setNewScan] = useState({ name: '', description: '', location: '', duration: 30 });
   const [scanOutput, setScanOutput] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -32,8 +32,8 @@ export default function ScanOverviewPage() {
   const api = useApi();
 
   // für die Fortschrittsanzeige
-  const [progress, setProgress]     = useState(0);
-  const [scanStart, setScanStart]   = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [scanStart, setScanStart] = useState(null);
   const [scanDuration, setScanDuration] = useState(0);
 
   const loadScans = useCallback(async () => {
@@ -54,7 +54,7 @@ export default function ScanOverviewPage() {
     const id = window.setInterval(() => {
       const elapsed = (Date.now() - scanStart) / 1000;           // in Sekunden
       // explizit in Klammern setzen, um no-mixed-operators zu vermeiden
-      const pct     = Math.min(100, (elapsed / scanDuration) * 100);
+      const pct = Math.min(100, (elapsed / scanDuration) * 100);
       setProgress(pct);
       if (pct >= 100) {
         clearInterval(id);
@@ -139,22 +139,6 @@ export default function ScanOverviewPage() {
     }
   };
 
-  const handleImportClick = async () => {
-    setImporting(true);
-    try {
-      const response = await api.post('/scans/import');
-      if (response.ok) {
-        flash('Import erfolgreich', 'info');
-        await loadScans();
-      } else {
-        flash(response.body?.error || 'Import fehlgeschlagen', 'danger');
-      }
-    } catch {
-      flash('Import fehlgeschlagen', 'danger');
-    }
-    setImporting(false);
-  };
-
   const filteredScans = scans.filter(scan =>
     Object.values(scan).some(val => val?.toString().toLowerCase().includes(search.toLowerCase()))
   );
@@ -165,8 +149,8 @@ export default function ScanOverviewPage() {
         <h2>Alle Scans</h2>
         <div className="d-flex gap-2">
 
-           {/* Fortschrittsbalken ganz links, nur während Scan läuft */}
-           {scanStart !== null && (
+          {/* Fortschrittsbalken ganz links, nur während Scan läuft */}
+          {scanStart !== null && (
             <div style={{ width: 200, marginRight: '1rem' }}>
               <div style={{ fontSize: '0.8rem', textAlign: 'center', marginBottom: '0.25rem' }}>Scan läuft</div>
               <ProgressBar
@@ -187,10 +171,6 @@ export default function ScanOverviewPage() {
               Alle Daten löschen
             </Button>
           )}
-
-          {user?.id === 1 && (
-            <Button variant="secondary" onClick={handleImportClick} disabled={importing}>Scans importieren</Button>
-          )}
           <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>Scan</Button>
         </div>
       </div>
@@ -209,7 +189,7 @@ export default function ScanOverviewPage() {
             <th>ID</th>
             <th>Erstellt am</th>
             <th>Beschreibung</th>
-            <th>Dateiname</th>
+            <th>Ort</th>
             <th>Download</th>
             <th>Optionen</th>
           </tr>
@@ -220,7 +200,7 @@ export default function ScanOverviewPage() {
               <td>{scan.id}</td>
               <td>{scan.created_at ? new Date(scan.created_at).toLocaleString() : '–'} (<TimeAgo isoDate={scan.created_at} />)</td>
               <td>{scan.description}</td>
-              <td>{scan.filename}</td>
+              <td>{scan.location}</td>
               <td>
                 {scan.filename ? (
                   <Button
@@ -285,28 +265,33 @@ export default function ScanOverviewPage() {
                 onChange={(e) => setNewScan({ ...newScan, location: e.target.value })}
               />
             </Form.Group>
+
             <Form.Group className="mb-3">
-              <Form.Label>Dauer (Sekunden)</Form.Label>
-              <div className="d-flex align-items-center gap-3">
-                <RangeSlider
-                  value={infinite ? 600 : newScan.duration}
-                  onChange={e => setNewScan({ ...newScan, duration: parseInt(e.target.value) })}
-                  min={10} max={600} step={10}
-                  disabled={infinite}
-                  tooltip='off'
-                />
-                <Form.Check
-                  type="checkbox"
-                  label="Unendlich"
-                  checked={infinite}
-                  onChange={e => setInfinite(e.target.checked)}
-                />
-              </div>
-              <div className="mt-2 fw-bold text-center">
-                {infinite ? '∞ (unendlich)' : `${newScan.duration} Sekunden`}
-              </div>
-              <Form.Text className="text-muted">10 Sekunden bis 10 Minuten oder unendlich</Form.Text>
+              {/* Label mit dynamischem Wert */}
+              <Form.Label>
+                Dauer ({infinite ? '∞ unendlich' : `${newScan.duration} Sekunden`})
+              </Form.Label>
+              {/* Slider füllt die gesamte Breite */}
+              <RangeSlider
+                className="w-100 mb-2"
+                value={infinite ? 600 : newScan.duration}
+                onChange={e => setNewScan({ ...newScan, duration: parseInt(e.target.value) })}
+                min={10} max={600} step={10}
+                disabled={infinite}
+                tooltip='off'
+              />
+              {/* Checkbox für „Unendlich“ */}
+              <Form.Check
+                type="checkbox"
+                label="Unendlich"
+                checked={infinite}
+                onChange={e => setInfinite(e.target.checked)}
+              />
+              <Form.Text className="text-muted">
+                Wähle zwischen 10 Sekunden und 10 Minuten oder unendlich.
+              </Form.Text>
             </Form.Group>
+
           </Form>
         </Modal.Body>
         <Modal.Footer>

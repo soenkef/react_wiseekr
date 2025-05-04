@@ -12,8 +12,13 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiDownload, FiAlertTriangle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
+import ScanHeader from '../components/ScanHeader';
+import RangeSlider from 'react-bootstrap-range-slider';
+import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import ListGroup from 'react-bootstrap/ListGroup';
 
 export default function ScanDetailPage() {
   const { id } = useParams();
@@ -29,14 +34,15 @@ export default function ScanDetailPage() {
   const [showDeauthModal, setShowDeauthModal] = useState(false);
   const [selectedAp, setSelectedAp] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 60 });
+  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 30 });
   const [activeDeauths, setActiveDeauths] = useState({});
   const [handshakeFiles, setHandshakeFiles] = useState({});
+  const [infinitePackets, setInfinitePackets] = useState(false);
 
   // Rescan state
   const [showRescanModal, setShowRescanModal] = useState(false);
   const [rescanBssid, setRescanBssid] = useState(null);
-  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 60 });
+  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 30 });
   const [activeRescans, setActiveRescans] = useState({});
   const [rescanOutputs, setRescanOutputs] = useState({});
   const [rescanProgress, setRescanProgress] = useState(0);
@@ -58,7 +64,7 @@ export default function ScanDetailPage() {
 
   useEffect(() => {
     if (!scan) return;
-  
+
     // baue ein Mapping key->file aus dem geladenen scan
     const hf = {};
     scan.access_points.forEach(ap => {
@@ -76,7 +82,7 @@ export default function ScanDetailPage() {
         hf[c.mac] = c.handshake_file;
       }
     });
-  
+
     setHandshakeFiles(hf);
   }, [scan]);
 
@@ -226,32 +232,10 @@ export default function ScanDetailPage() {
   return (
     <Body>
       <Button variant="primary" className="mb-3" onClick={() => navigate('/scans')}>Übersicht</Button>
-      <Card className="mb-4">
-        <Card.Header>
-          <strong>Scan:</strong> {scan.created_at ? new Date(scan.created_at).toLocaleString('de-DE') : '–'}{' '}
-          {scan.created_at && <TimeAgo isoDate={scan.created_at} />}
-        </Card.Header>
-        <Card.Body>
-          {/* Fortschrittsbalken für Rescan */}
-          {rescanStartTime !== null && (
-            <div style={{ width: 200, marginRight: '1rem' }}>
-              <ProgressBar now={rescanProgress} label={`${Math.round(rescanProgress)} %`} animated striped />
-            </div>
-          )}
-          <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
-          <p>
-            <strong>Dateiname:</strong>{' '}
-            {scan.filename ? (
-              <>
-                {scan.filename}{' '}
-                <Button variant="secondary" size="sm" onClick={e => { e.stopPropagation(); handleDownload(scan); }}>
-                  Download <FiDownload />
-                </Button>
-              </>
-            ) : ('–')}
-          </p>
-        </Card.Body>
-      </Card>
+      <ScanHeader
+        scan={scan}
+        onDownload={() => handleDownload(scan)}
+      />
 
       <hr />
 
@@ -262,42 +246,64 @@ export default function ScanDetailPage() {
           <Card key={ap.bssid} className="mb-2">
             <Card.Header onClick={() => toggle(ap.bssid)} style={{ cursor: 'pointer' }}>
               <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>
+                {/* Name mit truncation nur auf kleineren Bildschirmen */}
+                <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
+                  <strong className="ap-name">
                     {ap.essid || '<Hidden>'}
-                    {hasCamClient && <FiAlertTriangle className="text-warning ms-2" />}
+                    {hasCamClient && <FiAlertTriangle className="text-warning ms-1" />}
                   </strong>
                 </div>
-                <div className="d-flex gap-2 align-items-center">
-                  {/* Progress for this AP only */}
-                  {rescanBssid === ap.bssid && rescanStartTime !== null && (
-                    <div style={{ width: 100, textAlign: 'center', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
-                      Scan läuft
-                      <ProgressBar
-                        now={rescanProgress}
-                        label={`${Math.round(rescanProgress)} %`}
-                        animated
-                        striped
-                        style={{ height: '1rem', marginTop: '0.25rem' }}
-                      />
-                    </div>
-                  )}
+                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0">
                   {renderDeauthStatus(ap.bssid)}
-                  <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}>Deauth AP</Button>
-                  {renderHandshakeLink(ap.bssid)}
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}
+                  >
+                    Deauth
+                  </Button>
                   {handshakeFiles[`${ap.bssid}|AP`] && (
-                    <span className="ms-2 text-success">
-                      Handshake captured!
-                    </span>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      className="flex-fill ap-action-btn"
+                      onClick={e => { e.stopPropagation(); /* Download-Handler */ }}
+                    >
+                      Handshake
+                    </Button>
                   )}
-                  <Button variant="outline-secondary" size="sm" disabled={activeRescans[ap.bssid]} onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>
-                    {activeRescans[ap.bssid] ? <Spinner animation="border" size="sm" /> : 'Rescan AP'}
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    disabled={activeRescans[ap.bssid]}
+                    onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}
+                  >
+                    Rescan
                   </Button>
-                  <Button variant="outline-primary" size="sm" onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}>
-                    {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}
+                  >
+                    {openMap[ap.bssid] ? 'Hide' : 'Details'}
                   </Button>
-                </div>
+                </ButtonGroup>
               </div>
+              {rescanBssid === ap.bssid && rescanStartTime !== null && (
+                <ProgressBar
+                  now={rescanProgress}
+                  animated
+                  striped
+                  style={{
+                    height: '4px',        // sehr flach
+                    marginTop: '0.5rem',  // kleiner Abstand
+                    borderRadius: '2px'
+                  }}
+                />
+              )}
             </Card.Header>
             <Collapse in={openMap[ap.bssid]}>
               <Card.Body>
@@ -478,65 +484,115 @@ export default function ScanDetailPage() {
       {scan.unlinked_clients.length > 0 && (
         <>
           <h4 className="mt-5">Clients ohne Access Point</h4>
-          <Table size="sm" striped bordered>
-            <thead>
-              <tr>
-                {['mac', 'vendor', 'is_camera', 'power', 'first_seen', 'last_seen', 'probed_essids'].map(col => (
-                  <th key={col} onClick={() => handleUnlinkedSort(col)} style={{ cursor: 'pointer' }}>
-                    {col === 'mac' && 'MAC'}
-                    {col === 'vendor' && 'Vendor'}
-                    {col === 'is_camera' && 'Camera'}
-                    {col === 'power' && 'Power'}
-                    {col === 'first_seen' && 'First Seen'}
-                    {col === 'last_seen' && 'Last Seen'}
-                    {col === 'probed_essids' && 'Probed ESSIDs'}
-                    {unlinkedSort.column === col && (
-                      unlinkedSort.asc ? <FiArrowUp className="ms-1" /> : <FiArrowDown className="ms-1" />
-                    )}
-                  </th>
-                ))}
-                <th>Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedUnlinked.map(client => (
-                <tr key={client.mac}>
-                  <td>{client.mac}</td>
-                  <td>{client.vendor || '–'}</td>
-                  <td>{client.is_camera
-                    ? <><FiAlertTriangle className="text-warning me-1" title="Kamera erkannt" />Detected</>
-                    : 'No'}</td>
-                  <td>{client.power}</td>
-                  <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
-                  <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
-                  <td>{client.probed_essids}</td>
-                  <td>
-                    <div className="d-flex align-items-center gap-2">
 
-                      {renderDeauthStatus(client.mac)}
-                      {renderHandshakeLink(client.mac)}
-                    </div>
-                  </td>
+          {/* Mobile cards */}
+          <div className="d-block d-sm-none">
+            {scan.unlinked_clients.map(client => (
+              <Card key={client.mac} className="mb-2">
+                <Card.Body>
+                  <Card.Title className="d-flex justify-content-between align-items-center">
+                    <span className="text-monospace">{client.mac}</span>
+                    {client.is_camera && <FiAlertTriangle className="text-warning" />}
+                  </Card.Title>
+                  <ListGroup variant="flush">
+                    <ListGroup.Item><strong>Vendor:</strong> {client.vendor || '–'}</ListGroup.Item>
+                    <ListGroup.Item><strong>Power:</strong> {client.power}</ListGroup.Item>
+                    <ListGroup.Item>
+                      <strong>First Seen:</strong><br />
+                      <TimeAgo isoDate={client.first_seen} />
+                    </ListGroup.Item>
+                    <ListGroup.Item>
+                      <strong>Last Seen:</strong><br />
+                      <TimeAgo isoDate={client.last_seen} />
+                    </ListGroup.Item>
+                    <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
+                    <ListGroup.Item className="d-flex gap-2">
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeauthClient(null, client.mac)}
+                      >
+                        Deauth
+                      </Button>
+                      {renderHandshakeLink(null, client.mac)}
+                    </ListGroup.Item>
+                  </ListGroup>
+                </Card.Body>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop/tablet table */}
+          <div className="d-none d-sm-block">
+            <Table size="sm" striped bordered responsive>
+              <thead>
+                <tr>
+                  <th onClick={() => handleUnlinkedSort('mac')} style={{ cursor: 'pointer' }}>
+                    MAC {unlinkedSort.column === 'mac' && (unlinkedSort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                  </th>
+                  <th onClick={() => handleUnlinkedSort('vendor')} style={{ cursor: 'pointer' }}>
+                    Vendor {unlinkedSort.column === 'vendor' && (unlinkedSort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                  </th>
+                  <th>Camera</th>
+                  <th onClick={() => handleUnlinkedSort('power')} style={{ cursor: 'pointer' }}>
+                    Power {unlinkedSort.column === 'power' && (unlinkedSort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                  </th>
+                  <th>First Seen</th>
+                  <th>Last Seen</th>
+                  <th>Probed ESSIDs</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {sortedUnlinked.map(client => (
+                  <tr key={client.mac}>
+                    <td className="text-monospace">{client.mac}</td>
+                    <td>{client.vendor || '–'}</td>
+                    <td>{client.is_camera ? <FiAlertTriangle className="text-warning" /> : 'No'}</td>
+                    <td>{client.power}</td>
+                    <td><TimeAgo isoDate={client.first_seen} /></td>
+                    <td><TimeAgo isoDate={client.last_seen} /></td>
+                    <td>{client.probed_essids}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
         </>
       )}
-
 
       {/* Deauth Modal */}
       <Modal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} centered>
         <Modal.Header closeButton><Modal.Title>Deauth starten</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Pakete Slider */}
             <Form.Group className="mb-3">
-              <Form.Label>Anzahl Pakete</Form.Label>
-              <Form.Control type="number" min={1} value={deauthOptions.packets} onChange={e => setDeauthOptions(o => ({ ...o, packets: +e.target.value }))} />
+              <Form.Label>Pakete ({infinitePackets ? '∞ unendlich' : deauthOptions.packets})</Form.Label>
+              <RangeSlider
+                min={1} max={100} step={1}
+                value={deauthOptions.packets}
+                onChange={e => setDeauthOptions(o => ({ ...o, packets: +e.target.value }))}
+                disabled={infinitePackets}
+                tooltip="off"
+              />
+              <Form.Check
+                className="mt-2"
+                type="checkbox"
+                label="Unendlich"
+                checked={infinitePackets}
+                onChange={e => setInfinitePackets(e.target.checked)}
+              />
             </Form.Group>
+
+            {/* Dauer Slider */}
             <Form.Group className="mb-3">
-              <Form.Label>Dauer (Sek.)</Form.Label>
-              <Form.Control type="number" min={1} value={deauthOptions.duration} onChange={e => setDeauthOptions(o => ({ ...o, duration: +e.target.value }))} />
+              <Form.Label>Dauer ({deauthOptions.duration} Sekunden)</Form.Label>
+              <RangeSlider
+                min={10} max={600} step={1}
+                value={deauthOptions.duration}
+                onChange={e => setDeauthOptions(o => ({ ...o, duration: +e.target.value }))}
+                tooltip="off"
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -546,7 +602,6 @@ export default function ScanDetailPage() {
         </Modal.Footer>
       </Modal>
 
-
       {/* Rescan Modal */}
       <Modal show={showRescanModal} onHide={() => setShowRescanModal(false)} centered>
         <Modal.Header closeButton><Modal.Title>Rescan Access Point</Modal.Title></Modal.Header>
@@ -554,11 +609,20 @@ export default function ScanDetailPage() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Beschreibung</Form.Label>
-              <Form.Control type="text" value={rescanOptions.description} onChange={e => setRescanOptions(o => ({ ...o, description: e.target.value }))} />
+              <Form.Control
+                type="text"
+                value={rescanOptions.description}
+                onChange={e => setRescanOptions(o => ({ ...o, description: e.target.value }))}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Dauer (Sek.)</Form.Label>
-              <Form.Control type="number" min={1} value={rescanOptions.duration} onChange={e => setRescanOptions(o => ({ ...o, duration: +e.target.value }))} />
+              <Form.Label>Dauer ({rescanOptions.duration} Sekunden)</Form.Label>
+              <RangeSlider
+                min={1} max={300} step={1}
+                value={rescanOptions.duration}
+                onChange={e => setRescanOptions(o => ({ ...o, duration: +e.target.value }))}
+                tooltip="off"
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -567,6 +631,7 @@ export default function ScanDetailPage() {
           <Button variant="success" onClick={submitRescan}>Rescan starten</Button>
         </Modal.Footer>
       </Modal>
+
     </Body>
   );
 }
