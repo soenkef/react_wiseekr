@@ -12,7 +12,7 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter, FiDownload } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
 import ScanHeader from '../components/ScanHeader';
 import RangeSlider from 'react-bootstrap-range-slider';
@@ -215,8 +215,8 @@ export default function ScanDetailPage() {
   const renderHandshakeLink = (bssid, client) => {
     const key = `${bssid}|${client || 'AP'}`;
     return handshakeFiles[key] ? (
-      <a href={`/scans/${handshakeFiles[key]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">
-        Handshake
+      <a href={`/scans/${handshakeFiles[key]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success d-inline-flex align-items-center">
+        <FiDownload className="me-1" />Handshake
       </a>
     ) : null;
   };
@@ -368,6 +368,7 @@ export default function ScanDetailPage() {
                       </div>
                     )}
                     <h5>Access Point Informationen</h5>
+                    <h5>{ap.essid || '<Hidden>'}</h5>
 
                     {/* Handshake-Download-Links unterhalb der Überschrift */}
                     {(() => {
@@ -387,7 +388,7 @@ export default function ScanDetailPage() {
                                 rel="noopener noreferrer"
                                 className="btn btn-sm btn-outline-success me-2"
                               >
-                                Handshake herunterladen ({file})
+                                <FiDownload className="me-1" />Handshake
                               </a>
                             );
                           })}
@@ -513,11 +514,7 @@ export default function ScanDetailPage() {
                               </Button>
                               {renderDeauthStatus(ap.bssid, client.mac)}
                               {renderHandshakeLink(ap.bssid, client.mac)}
-                              {handshakeFiles[`${ap.bssid}|${client.mac}`] && (
-                                <span className="ms-2 text-success">
-                                  Handshake captured!
-                                </span>
-                              )}
+                              
                             </div>
                           </td>
                         </tr>
