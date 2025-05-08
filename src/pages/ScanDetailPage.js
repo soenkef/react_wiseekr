@@ -276,13 +276,13 @@ export default function ScanDetailPage() {
           <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="sm" />
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => handleSortSelect('power')}>
-              Power {apSort.field==='power' && (apSort.asc? '↑':'↓')}
+              Power {apSort.field === 'power' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
             <Dropdown.Item onClick={() => handleSortSelect('vendor')}>
-              Vendor {apSort.field==='vendor' && (apSort.asc? '↑':'↓')}
+              Vendor {apSort.field === 'vendor' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
             <Dropdown.Item onClick={() => handleSortSelect('last_seen')}>
-              Last Seen {apSort.field==='last_seen' && (apSort.asc? '↑':'↓')}
+              Last Seen {apSort.field === 'last_seen' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
@@ -468,59 +468,35 @@ export default function ScanDetailPage() {
                 </Card>
 
                 {ap.clients.length === 0 ? <p>Keine Clients verbunden.</p> : (
-                  <Table size="sm" striped bordered>
-                    <thead>
-                      <tr>
-                        <th>MAC</th>
-                        <th>Vendor</th>
-                        <th>Camera</th>
-                        <th>Power</th>
-                        <th>First Seen</th>
-                        <th>Last Seen</th>
-                        <th>Probed ESSIDs</th>
-                        <th>Aktion</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ap.clients.map(client => (
-                        <tr key={client.mac}>
-                          <td>{client.mac}</td>
-                          <td>{client.vendor || '–'}</td>
-                          <td>
-                            {client.is_camera
-                              ? <><FiAlertTriangle className="text-warning me-1" />Detected</>
-                              : 'No'}
-                          </td>
-                          <td>{client.power}</td>
-                          <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
-                          <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
-                          <td>{client.probed_essids}</td>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeauthClient(ap.bssid, client.mac)}>
+                  <div className="d-flex flex-wrap">
+                    {ap.clients.map(client => (
+                      <Card key={client.mac} className="mb-2 w-100 w-md-50">
+                        <Card.Body>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <strong>{client.mac}</strong>
+                            {client.is_camera && <FiAlertTriangle className="text-warning" />}
+                          </div>
+                          <ListGroup variant="flush">
+                            <ListGroup.Item><strong>Vendor:</strong> {client.vendor || '–'}</ListGroup.Item>
+                            <ListGroup.Item><strong>Power:</strong> {client.power}</ListGroup.Item>
+                            <ListGroup.Item><strong>First Seen:</strong> <TimeAgo isoDate={client.first_seen} /></ListGroup.Item>
+                            <ListGroup.Item><strong>Last Seen:</strong> <TimeAgo isoDate={client.last_seen} /></ListGroup.Item>
+                            <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
+                            <ListGroup.Item className="d-flex gap-2">
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => handleDeauthClient(ap.bssid, client.mac)}
+                              >
                                 Deauth
                               </Button>
-                              {renderDeauthStatus(ap.bssid, client.mac)}
                               {renderHandshakeLink(ap.bssid, client.mac)}
-                              
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
+                            </ListGroup.Item>
+                          </ListGroup>
+                        </Card.Body>
+                      </Card>
+                    ))}
+                  </div>
                 )}
               </Card.Body>
             </Collapse>

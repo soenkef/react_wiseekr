@@ -11,6 +11,9 @@ export default function ScanHeader({ scan, onDownload }) {
   const date = scan.created_at
     ? new Date(scan.created_at).toLocaleString('de-DE')
     : '–'
+  
+  // Anzahl der gefundenen Access Points
+  const apCount = scan.access_points ? scan.access_points.length : 0;
 
   return (
     <Card className="mb-4">
@@ -43,23 +46,23 @@ export default function ScanHeader({ scan, onDownload }) {
         <Row>
           <Col md={6}>
             <dl className="row mb-0">
-              <dt className="col-sm-4">Beschreibung</dt>
+              <dt className="col-sm-4">Beschreibung:</dt>
               <dd className="col-sm-8">{scan.description || '–'}</dd>
 
-              <dt className="col-sm-4">Ort</dt>
+              <dt className="col-sm-4">Ort:</dt>
               <dd className="col-sm-8">{scan.location || '–'}</dd>
             </dl>
           </Col>
           <Col md={6}>
             <dl className="row mb-0">
-              <dt className="col-sm-4">Dauer</dt>
+              <dt className="col-sm-4">Dauer:</dt>
               <dd className="col-sm-8">{scan.duration ? `${scan.duration}s` : '–'}</dd>
 
-             <dt className="col-sm-4">Dateigröße</dt>
-             <dd className="col-sm-8">
-               {formatFileSize(scan.filesize)}
-             </dd>
+              <dt className="col-sm-4">Dateigröße:</dt>
+              <dd className="col-sm-8">{formatFileSize(scan.filesize)}</dd>
 
+              <dt className="col-sm-4">Access Points:</dt>
+              <dd className="col-sm-8">{apCount}</dd>
             </dl>
           </Col>
         </Row>

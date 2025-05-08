@@ -175,29 +175,57 @@ export default function ScanOverviewPage() {
           </tr>
         </thead>
         <tbody>
-          {filteredScans.map(s => (
-            <tr key={s.id} onClick={e => !e.target.closest('button') && handleNavigate(s.id)} style={{ cursor: 'pointer' }}>
-              <td>{s.id}</td>
-              <td>
-                {new Date(s.created_at).toLocaleString('de-DE')}<br/>
-                <small className="text-muted"><TimeAgo isoDate={s.created_at} /></small>
-              </td>
-              <td>{s.description}</td>
-              <td>{s.location}</td>
-              <td className="text-center">
-                {s.filename
-                  ? <Button size="sm" variant="outline-secondary" onClick={e => { e.stopPropagation(); handleDownload(s); }}>
-                      <FiDownload />
-                    </Button>
-                  : '–'}
-              </td>
-              <td className="text-end">
-                <Button size="sm" variant="outline-danger" onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}>
-                  Löschen
-                </Button>
-              </td>
-            </tr>
-          ))}
+          {filteredScans.map(s => {
+            // Anzahl der Access Points ermitteln
+            const apCount = s.access_points?.length || 0;
+            return (
+              <tr
+                key={s.id}
+                onClick={e => !e.target.closest('button') && handleNavigate(s.id)}
+                style={{ cursor: 'pointer' }}
+              >
+                <td>{s.id}</td>
+                <td>
+                  {new Date(s.created_at).toLocaleString('de-DE')}
+                  <br />
+                  <small className="text-muted"><TimeAgo isoDate={s.created_at} /></small>
+                </td>
+                <td>
+                  {s.description}
+                  {apCount > 0 && (
+                    <>
+                      <br />
+                      <small className="text-muted">({apCount} Access Points)</small>
+                    </>
+                  )}
+                </td>
+                <td>{s.location}</td>
+                <td className="text-center">
+                  {s.filename
+                    ? (
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={e => { e.stopPropagation(); handleDownload(s); }}
+                      >
+                        <FiDownload />
+                      </Button>
+                    )
+                    : '–'
+                  }
+                </td>
+                <td className="text-end">
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}
+                  >
+                    Löschen
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
 
