@@ -12,8 +12,14 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiDownload, FiAlertTriangle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter } from 'react-icons/fi';
 import { handleDownload } from '../utils/download';
+import ScanHeader from '../components/ScanHeader';
+import RangeSlider from 'react-bootstrap-range-slider';
+import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import ListGroup from 'react-bootstrap/ListGroup';
+import Dropdown from 'react-bootstrap/Dropdown';
 
 export default function ScanDetailPage() {
   const { id } = useParams();
@@ -25,21 +31,24 @@ export default function ScanDetailPage() {
   const [scan, setScan] = useState(null);
   const [openMap, setOpenMap] = useState({});
 
+  // Sorting for access_points
+  const [apSort, setApSort] = useState({ field: null, asc: true });
+
   // Deauth state
   const [showDeauthModal, setShowDeauthModal] = useState(false);
-  const [selectedMac, setSelectedMac] = useState(null);
-  const [isClient, setIsClient] = useState(false);
-  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 60 });
+  const [selectedAp, setSelectedAp] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 30 });
   const [activeDeauths, setActiveDeauths] = useState({});
   const [handshakeFiles, setHandshakeFiles] = useState({});
+  const [infinitePackets, setInfinitePackets] = useState(false);
 
   // Rescan state
   const [showRescanModal, setShowRescanModal] = useState(false);
   const [rescanBssid, setRescanBssid] = useState(null);
-  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 60 });
+  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 30 });
   const [activeRescans, setActiveRescans] = useState({});
   const [rescanOutputs, setRescanOutputs] = useState({});
-  // Progress state for rescan
   const [rescanProgress, setRescanProgress] = useState(0);
   const [rescanStartTime, setRescanStartTime] = useState(null);
   const [rescanDurationState, setRescanDurationState] = useState(0);
@@ -57,56 +66,160 @@ export default function ScanDetailPage() {
     if (scanId) load();
   }, [scanId, api, flash]);
 
+  useEffect(() => {
+    if (!scan) return;
+
+    // baue ein Mapping key->file aus dem geladenen scan
+    const hf = {};
+    scan.access_points.forEach(ap => {
+      if (ap.handshake_file) {
+        hf[`${ap.bssid}|AP`] = ap.handshake_file;
+      }
+      ap.clients.forEach(c => {
+        if (c.handshake_file) {
+          hf[`${ap.bssid}|${c.mac}`] = c.handshake_file;
+        }
+      });
+    });
+    scan.unlinked_clients.forEach(c => {
+      if (c.handshake_file) {
+        hf[c.mac] = c.handshake_file;
+      }
+    });
+
+    setHandshakeFiles(hf);
+  }, [scan]);
+
   // Track rescan progress
   useEffect(() => {
     if (rescanStartTime === null) return;
-    const interval = window.setInterval(() => {
+    const id = window.setInterval(() => {
       const elapsed = (Date.now() - rescanStartTime) / 1000;
       const pct = Math.min(100, (elapsed / rescanDurationState) * 100);
       setRescanProgress(pct);
-      if (pct >= 100) window.clearInterval(interval);
+      if (pct >= 100) clearInterval(id);
     }, 500);
-    return () => window.clearInterval(interval);
+    return () => clearInterval(id);
   }, [rescanStartTime, rescanDurationState]);
 
   const toggle = (bssid) => setOpenMap(prev => ({ ...prev, [bssid]: !prev[bssid] }));
 
   const sortedUnlinked = useMemo(() => {
     if (!scan) return [];
-    const clients = [...scan.unlinked_clients];
+    const list = [...scan.unlinked_clients];
     const { column, asc } = unlinkedSort;
-    if (!column) return clients;
-    return clients.sort((a, b) => {
-      let valA = a[column] ?? '';
-      let valB = b[column] ?? '';
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
-      if (valA < valB) return asc ? -1 : 1;
-      if (valA > valB) return asc ? 1 : -1;
+    if (!column) return list;
+    return list.sort((a, b) => {
+      let aVal = a[column] ?? '';
+      let bVal = b[column] ?? '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return asc ? -1 : 1;
+      if (aVal > bVal) return asc ? 1 : -1;
       return 0;
     });
   }, [scan, unlinkedSort]);
 
   const handleUnlinkedSort = (column) => setUnlinkedSort(prev => ({ column, asc: prev.column === column ? !prev.asc : true }));
 
+  // Filter button handler
+  const handleSortSelect = (field) => {
+    setApSort(prev => ({
+      field,
+      asc: prev.field === field ? !prev.asc : true
+    }));
+  };
+
+  // Sorted access_points
+  const sortedAPs = useMemo(() => {
+    if (!scan) return [];
+    const list = [...scan.access_points];
+    const { field, asc } = apSort;
+    if (!field) return list;
+    return list.sort((a, b) => {
+      let av = a[field] ?? '';
+      let bv = b[field] ?? '';
+      if (field === 'last_seen') {
+        av = a.last_seen ? new Date(a.last_seen).getTime() : 0;
+        bv = b.last_seen ? new Date(b.last_seen).getTime() : 0;
+      }
+      if (av < bv) return asc ? -1 : 1;
+      if (av > bv) return asc ? 1 : -1;
+      return 0;
+    });
+  }, [scan, apSort]);
+
   // Deauth handlers
-  const handleDeauth = (mac, client = false) => { setSelectedMac(mac); setIsClient(client); setShowDeauthModal(true); };
+  const handleDeauthAp = (bssid) => {
+    setSelectedAp(bssid);
+    setSelectedClient(null);
+    setShowDeauthModal(true);
+  };
+
+  const handleDeauthClient = (bssid, clientMac) => {
+    setSelectedAp(bssid);
+    setSelectedClient(clientMac);
+    setShowDeauthModal(true);
+  };
+
   const submitDeauth = async () => {
     setShowDeauthModal(false);
     flash('Deauth process started...', 'warning');
-    setActiveDeauths(prev => ({ ...prev, [selectedMac]: true }));
-    const resp = await api.post('/deauth/start', { mac: selectedMac, is_client: isClient, ...deauthOptions, scan_id: scanId });
-    setActiveDeauths(prev => { const u = { ...prev }; delete u[selectedMac]; return u; });
+    const key = `${selectedAp}|${selectedClient || 'AP'}`;
+    setActiveDeauths(prev => ({ ...prev, [key]: true }));
+
+    const apInfo = scan.access_points.find(a => a.bssid === selectedAp) || {};
+    const channel = apInfo.channel || 6;
+
+    let endpoint, payload;
+    if (selectedClient) {
+      // Deauthentifiziere Client vom AP
+      endpoint = '/deauth/start_deauth_client';
+      payload = {
+        scan_id: scanId,
+        ap_mac: selectedAp,
+        client_mac: selectedClient,
+        channel: channel,
+        packets: deauthOptions.packets,
+        duration: deauthOptions.duration
+      };
+    } else {
+      // Deauthentifiziere Access Point selbst
+      endpoint = '/deauth/start';
+      payload = {
+        scan_id: scanId,
+        mac: selectedAp,
+        channel: channel,
+        is_client: false,
+        packets: deauthOptions.packets,
+        duration: deauthOptions.duration
+      };
+    }
+
+    const resp = await api.post(endpoint, payload);
+    setActiveDeauths(prev => { const nxt = { ...prev }; delete nxt[key]; return nxt; });
     if (resp.ok) {
       flash(resp.body.message || 'Deauth abgeschlossen.', 'success');
-      if (resp.body.success && resp.body.file) setHandshakeFiles(prev => ({ ...prev, [selectedMac]: resp.body.file }));
-    } else flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+      if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
+    } else {
+      flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+    }
   };
 
-  const renderDeauthStatus = mac => activeDeauths[mac] ? <Spinner animation="border" size="sm" variant="danger" /> : null;
-  const renderHandshakeLink = mac => handshakeFiles[mac] && (
-    <a href={`/scans/${handshakeFiles[mac]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">Handshake</a>
-  );
+
+  const renderDeauthStatus = (bssid, client) => {
+    const key = `${bssid}|${client || 'AP'}`;
+    return activeDeauths[key] ? <Spinner animation="border" size="sm" variant="danger" /> : null;
+  };
+
+  const renderHandshakeLink = (bssid, client) => {
+    const key = `${bssid}|${client || 'AP'}`;
+    return handshakeFiles[key] ? (
+      <a href={`/scans/${handshakeFiles[key]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">
+        Handshake
+      </a>
+    ) : null;
+  };
 
   // Rescan handlers
   const handleRescan = (bssid) => {
@@ -147,77 +260,100 @@ export default function ScanDetailPage() {
 
   if (!scan) return <Body><p>Lade Scan-Daten...</p></Body>;
 
-
   return (
     <Body>
       <Button variant="primary" className="mb-3" onClick={() => navigate('/scans')}>Übersicht</Button>
-      <Card className="mb-4">
-        <Card.Header>
-          <strong>Scan:</strong> {scan.created_at ? new Date(scan.created_at).toLocaleString('de-DE') : '–'}{' '}
-          {scan.created_at && <TimeAgo isoDate={scan.created_at} />}
-        </Card.Header>
-        <Card.Body>
-          {/* Fortschrittsbalken für Rescan */}
-          {rescanStartTime !== null && (
-            <div style={{ width: 200, marginRight: '1rem' }}>
-              <ProgressBar now={rescanProgress} label={`${Math.round(rescanProgress)} %`} animated striped />
-            </div>
-          )}
-          <p><strong>Beschreibung:</strong> {scan.description || '–'}</p>
-          <p>
-            <strong>Dateiname:</strong>{' '}
-            {scan.filename ? (
-              <>
-                {scan.filename}{' '}
-                <Button variant="secondary" size="sm" onClick={e => { e.stopPropagation(); handleDownload(scan); }}>
-                  Download <FiDownload />
-                </Button>
-              </>
-            ) : ('–')}
-          </p>
-        </Card.Body>
-      </Card>
+      <ScanHeader
+        scan={scan}
+        onDownload={() => handleDownload(scan)}
+      />
+      <div className="d-flex justify-content-between align-items-center mt-4">
+        <h4>Access Points</h4>
+        <Dropdown as={ButtonGroup}>
+          <Button variant="outline-secondary" size="sm">
+            <FiFilter /> Sortieren
+          </Button>
+          <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="sm" />
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => handleSortSelect('power')}>
+              Power {apSort.field==='power' && (apSort.asc? '↑':'↓')}
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleSortSelect('vendor')}>
+              Vendor {apSort.field==='vendor' && (apSort.asc? '↑':'↓')}
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleSortSelect('last_seen')}>
+              Last Seen {apSort.field==='last_seen' && (apSort.asc? '↑':'↓')}
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
+
 
       <hr />
-
-      <h4 className="mt-4">Access Points</h4>
-      {scan.access_points.map(ap => {
+      {sortedAPs.map(ap => {
         const hasCamClient = ap.clients.some(c => c.is_camera);
         return (
           <Card key={ap.bssid} className="mb-2">
             <Card.Header onClick={() => toggle(ap.bssid)} style={{ cursor: 'pointer' }}>
               <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>
+                {/* Name mit truncation nur auf kleineren Bildschirmen */}
+                <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
+                  <strong className="ap-name">
                     {ap.essid || '<Hidden>'}
-                    {hasCamClient && <FiAlertTriangle className="text-warning ms-2" />}
+                    {hasCamClient && <FiAlertTriangle className="text-warning ms-1" />}
                   </strong>
                 </div>
-                <div className="d-flex gap-2 align-items-center">
-                  {/* Progress for this AP only */}
-                  {rescanBssid === ap.bssid && rescanStartTime !== null && (
-                    <div style={{ width: 100, textAlign: 'center', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
-                      Scan läuft
-                      <ProgressBar
-                        now={rescanProgress}
-                        label={`${Math.round(rescanProgress)} %`}
-                        animated
-                        striped
-                        style={{ height: '1rem', marginTop: '0.25rem' }}
-                      />
-                    </div>
-                  )}
+                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0">
                   {renderDeauthStatus(ap.bssid)}
-                  <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeauth(ap.bssid); }}>Deauth AP</Button>
-                  {renderHandshakeLink(ap.bssid)}
-                  <Button variant="outline-secondary" size="sm" disabled={activeRescans[ap.bssid]} onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}>
-                    {activeRescans[ap.bssid] ? <Spinner animation="border" size="sm" /> : 'Rescan AP'}
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}
+                  >
+                    Deauth
                   </Button>
-                  <Button variant="outline-primary" size="sm" onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}>
-                    {openMap[ap.bssid] ? 'Verbergen' : 'Details'}
+                  {handshakeFiles[`${ap.bssid}|AP`] && (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      className="flex-fill ap-action-btn"
+                      onClick={e => { e.stopPropagation(); /* Download-Handler */ }}
+                    >
+                      Handshake
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    disabled={activeRescans[ap.bssid]}
+                    onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}
+                  >
+                    Rescan
                   </Button>
-                </div>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}
+                  >
+                    {openMap[ap.bssid] ? 'Hide' : 'Details'}
+                  </Button>
+                </ButtonGroup>
               </div>
+              {rescanBssid === ap.bssid && rescanStartTime !== null && (
+                <ProgressBar
+                  now={rescanProgress}
+                  animated
+                  striped
+                  style={{
+                    height: '4px',        // sehr flach
+                    marginTop: '0.5rem',  // kleiner Abstand
+                    borderRadius: '2px'
+                  }}
+                />
+              )}
             </Card.Header>
             <Collapse in={openMap[ap.bssid]}>
               <Card.Body>
@@ -231,10 +367,34 @@ export default function ScanDetailPage() {
                         </pre>
                       </div>
                     )}
-                    <h5>
-                      Access Point Informationen
-                      {hasCamClient && <FiAlertTriangle className="text-warning ms-2" />}
-                    </h5>
+                    <h5>Access Point Informationen</h5>
+
+                    {/* Handshake-Download-Links unterhalb der Überschrift */}
+                    {(() => {
+                      // sammle alle Keys für diesen AP (AP-Handshake + Client-Handshakes)
+                      const keys = Object.keys(handshakeFiles)
+                        .filter(key => key.startsWith(`${ap.bssid}|`));
+                      if (keys.length === 0) return null;
+                      return (
+                        <div className="mb-3">
+                          {keys.map(key => {
+                            const file = handshakeFiles[key];
+                            return (
+                              <a
+                                key={key}
+                                href={`/scans/${file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-success me-2"
+                              >
+                                Handshake herunterladen ({file})
+                              </a>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
                     <Table size="sm" borderless className="mb-0">
                       <tbody>
                         <tr>
@@ -348,11 +508,16 @@ export default function ScanDetailPage() {
                           <td>{client.probed_essids}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2">
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>
+                              <Button variant="outline-danger" size="sm" onClick={() => handleDeauthClient(ap.bssid, client.mac)}>
                                 Deauth
                               </Button>
-                              {renderDeauthStatus(client.mac)}
-                              {renderHandshakeLink(client.mac)}
+                              {renderDeauthStatus(ap.bssid, client.mac)}
+                              {renderHandshakeLink(ap.bssid, client.mac)}
+                              {handshakeFiles[`${ap.bssid}|${client.mac}`] && (
+                                <span className="ms-2 text-success">
+                                  Handshake captured!
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -369,65 +534,115 @@ export default function ScanDetailPage() {
       {scan.unlinked_clients.length > 0 && (
         <>
           <h4 className="mt-5">Clients ohne Access Point</h4>
-          <Table size="sm" striped bordered>
-            <thead>
-              <tr>
-                {['mac', 'vendor', 'is_camera', 'power', 'first_seen', 'last_seen', 'probed_essids'].map(col => (
-                  <th key={col} onClick={() => handleUnlinkedSort(col)} style={{ cursor: 'pointer' }}>
-                    {col === 'mac' && 'MAC'}
-                    {col === 'vendor' && 'Vendor'}
-                    {col === 'is_camera' && 'Camera'}
-                    {col === 'power' && 'Power'}
-                    {col === 'first_seen' && 'First Seen'}
-                    {col === 'last_seen' && 'Last Seen'}
-                    {col === 'probed_essids' && 'Probed ESSIDs'}
-                    {unlinkedSort.column === col && (
-                      unlinkedSort.asc ? <FiArrowUp className="ms-1" /> : <FiArrowDown className="ms-1" />
-                    )}
+
+          {/* Mobile cards */}
+          <div className="d-block d-sm-none">
+            {scan.unlinked_clients.map(client => (
+              <Card key={client.mac} className="mb-2">
+                <Card.Body>
+                  <Card.Title className="d-flex justify-content-between align-items-center">
+                    <span className="text-monospace">{client.mac}</span>
+                    {client.is_camera && <FiAlertTriangle className="text-warning" />}
+                  </Card.Title>
+                  <ListGroup variant="flush">
+                    <ListGroup.Item><strong>Vendor:</strong> {client.vendor || '–'}</ListGroup.Item>
+                    <ListGroup.Item><strong>Power:</strong> {client.power}</ListGroup.Item>
+                    <ListGroup.Item>
+                      <strong>First Seen:</strong><br />
+                      <TimeAgo isoDate={client.first_seen} />
+                    </ListGroup.Item>
+                    <ListGroup.Item>
+                      <strong>Last Seen:</strong><br />
+                      <TimeAgo isoDate={client.last_seen} />
+                    </ListGroup.Item>
+                    <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
+                    <ListGroup.Item className="d-flex gap-2">
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeauthClient(null, client.mac)}
+                      >
+                        Deauth
+                      </Button>
+                      {renderHandshakeLink(null, client.mac)}
+                    </ListGroup.Item>
+                  </ListGroup>
+                </Card.Body>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop/tablet table */}
+          <div className="d-none d-sm-block">
+            <Table size="sm" striped bordered responsive>
+              <thead>
+                <tr>
+                  <th onClick={() => handleUnlinkedSort('mac')} style={{ cursor: 'pointer' }}>
+                    MAC {unlinkedSort.column === 'mac' && (unlinkedSort.asc ? <FiArrowUp /> : <FiArrowDown />)}
                   </th>
-                ))}
-                <th>Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedUnlinked.map(client => (
-                <tr key={client.mac}>
-                  <td>{client.mac}</td>
-                  <td>{client.vendor || '–'}</td>
-                  <td>{client.is_camera
-                    ? <><FiAlertTriangle className="text-warning me-1" title="Kamera erkannt" />Detected</>
-                    : 'No'}</td>
-                  <td>{client.power}</td>
-                  <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
-                  <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
-                  <td>{client.probed_essids}</td>
-                  <td>
-                    <div className="d-flex align-items-center gap-2">
-                      <Button variant="outline-danger" size="sm" onClick={() => handleDeauth(client.mac, true)}>Deauth</Button>
-                      {renderDeauthStatus(client.mac)}
-                      {renderHandshakeLink(client.mac)}
-                    </div>
-                  </td>
+                  <th onClick={() => handleUnlinkedSort('vendor')} style={{ cursor: 'pointer' }}>
+                    Vendor {unlinkedSort.column === 'vendor' && (unlinkedSort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                  </th>
+                  <th>Camera</th>
+                  <th onClick={() => handleUnlinkedSort('power')} style={{ cursor: 'pointer' }}>
+                    Power {unlinkedSort.column === 'power' && (unlinkedSort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                  </th>
+                  <th>First Seen</th>
+                  <th>Last Seen</th>
+                  <th>Probed ESSIDs</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {sortedUnlinked.map(client => (
+                  <tr key={client.mac}>
+                    <td className="text-monospace">{client.mac}</td>
+                    <td>{client.vendor || '–'}</td>
+                    <td>{client.is_camera ? <FiAlertTriangle className="text-warning" /> : 'No'}</td>
+                    <td>{client.power}</td>
+                    <td><TimeAgo isoDate={client.first_seen} /></td>
+                    <td><TimeAgo isoDate={client.last_seen} /></td>
+                    <td>{client.probed_essids}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
         </>
       )}
-
 
       {/* Deauth Modal */}
       <Modal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} centered>
         <Modal.Header closeButton><Modal.Title>Deauth starten</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Pakete Slider */}
             <Form.Group className="mb-3">
-              <Form.Label>Anzahl Pakete</Form.Label>
-              <Form.Control type="number" min={1} value={deauthOptions.packets} onChange={e => setDeauthOptions(o => ({ ...o, packets: +e.target.value }))} />
+              <Form.Label>Pakete ({infinitePackets ? '∞ unendlich' : deauthOptions.packets})</Form.Label>
+              <RangeSlider
+                min={1} max={100} step={1}
+                value={deauthOptions.packets}
+                onChange={e => setDeauthOptions(o => ({ ...o, packets: +e.target.value }))}
+                disabled={infinitePackets}
+                tooltip="off"
+              />
+              <Form.Check
+                className="mt-2"
+                type="checkbox"
+                label="Unendlich"
+                checked={infinitePackets}
+                onChange={e => setInfinitePackets(e.target.checked)}
+              />
             </Form.Group>
+
+            {/* Dauer Slider */}
             <Form.Group className="mb-3">
-              <Form.Label>Dauer (Sek.)</Form.Label>
-              <Form.Control type="number" min={1} value={deauthOptions.duration} onChange={e => setDeauthOptions(o => ({ ...o, duration: +e.target.value }))} />
+              <Form.Label>Dauer ({deauthOptions.duration} Sekunden)</Form.Label>
+              <RangeSlider
+                min={10} max={600} step={1}
+                value={deauthOptions.duration}
+                onChange={e => setDeauthOptions(o => ({ ...o, duration: +e.target.value }))}
+                tooltip="off"
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -444,11 +659,20 @@ export default function ScanDetailPage() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Beschreibung</Form.Label>
-              <Form.Control type="text" value={rescanOptions.description} onChange={e => setRescanOptions(o => ({ ...o, description: e.target.value }))} />
+              <Form.Control
+                type="text"
+                value={rescanOptions.description}
+                onChange={e => setRescanOptions(o => ({ ...o, description: e.target.value }))}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Dauer (Sek.)</Form.Label>
-              <Form.Control type="number" min={1} value={rescanOptions.duration} onChange={e => setRescanOptions(o => ({ ...o, duration: +e.target.value }))} />
+              <Form.Label>Dauer ({rescanOptions.duration} Sekunden)</Form.Label>
+              <RangeSlider
+                min={1} max={300} step={1}
+                value={rescanOptions.duration}
+                onChange={e => setRescanOptions(o => ({ ...o, duration: +e.target.value }))}
+                tooltip="off"
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -457,6 +681,7 @@ export default function ScanDetailPage() {
           <Button variant="success" onClick={submitRescan}>Rescan starten</Button>
         </Modal.Footer>
       </Modal>
+
     </Body>
   );
 }

@@ -17,6 +17,9 @@ export default function Sidebar() {
             <Nav.Item>
                 <Nav.Link as={NavLink} to="/scan-stream">Terminal</Nav.Link>
             </Nav.Item>
+            <Nav.Item>
+                <Nav.Link as={NavLink} to="/settings">Settings</Nav.Link>
+            </Nav.Item>
         </Navbar>
     );
 }

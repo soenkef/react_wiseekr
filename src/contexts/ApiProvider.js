@@ -7,6 +7,7 @@ const ApiContext = createContext();
 export default function ApiProvider({ children }) {
   const flash = useFlash();
 
+  // debug because error when login with iphone
   const onError = useCallback(() => {
     flash('An unexpected error occurred', 'danger');
   }, [flash]);

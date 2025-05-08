@@ -82,3 +82,25 @@
 .Write form {
   width: 100%;
 }
+
+.ap-action-btn {
+  min-width: 4rem;       /* alle Buttons mindestens 4rem breit */
+  text-align: center;    /* zentrierter Text/Icon */
+}
+
+/* Standard: kein Truncate, vollständiger Umbruch */
+.ap-name {
+  display: block;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+/* Auf kleineren Bildschirmen (Bootstrap-Sm-Breakpoint und kleiner) */
+@media (max-width: 768px) {
+  .ap-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

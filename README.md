@@ -348,6 +348,7 @@ Run the application with the Flask development web server:
 
 ```bash
 flask run
+flask run --host=0.0.0.0 --port=5000
 ```
 
 The application runs on `localhost:5000`. You can access the API documentation
@@ -385,8 +386,8 @@ if __name__ == '__main__':
     cli()
 
 ## export Environment variables - do in boot.sh - in venv!
-export FLASK_APP=app:create_app
-export FLASK_ENV=development
+export FLASK_APP=api.app:create_app
+export FLASK_ENV=developmentflas
 
 ## remove migrations folder
 rm -rf migrations/
@@ -433,7 +434,24 @@ sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefil
 export ARCH=arm
 sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
 
-# add script for building oui-database file to recognize possible cameras by vendor-id
+# alfa wifi stick should set up with fix wifi interface name wlan0 00:c0:ca:b0:2c:64
+sudo vim /etc/udev/rules.d/10-wlan.rules
+# paste following line
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="00:c0:ca:b0:2c:64", NAME="wlan0"
+sudo udevadm control --reload
+sudo udevadm trigger --subsystem-match=net
+
+# hcxpcapngtool install to check if cap contains EAPOL data
+# Example:
+hcxpcapngtool -o handshakes.hccapx /home/amboss/react_wiseekr-api/scans/handshake_scan_d50503b902134e42a3014f6a037baf8f.cap
+sudo apt install hcxtools
+
+# to connect to wifi as client
+sudo systemctl start NetworkManager
+sudo systemctl enable NetworkManager
+
+
+# add script for building oui-database file to recognize possible cameras by vendor-id by mac address
 ## run to build or actualize the oui-database-file
 cd /home/amboss/react_wiseekr-api/oui/
 python3 oui_sum.py

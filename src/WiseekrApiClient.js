@@ -38,7 +38,8 @@ export default class WiseekrApiClient {
           'Authorization': 'Bearer ' + localStorage.getItem('accessToken'),
           ...options.headers,
         },
-        credentials: options.url === '/tokens' ? 'include' : 'omit',
+        //credentials: options.url === '/tokens' ? 'include' : 'omit',
+        credentials: 'include',
         body: options.body ? JSON.stringify(options.body) : null,
       });
     }
