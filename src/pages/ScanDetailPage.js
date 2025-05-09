@@ -285,6 +285,9 @@ export default function ScanDetailPage() {
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => handleSortSelect('power')}>
               Power {apSort.field === 'power' && (apSort.asc ? '↑' : '↓')}
+            </Dropdown.Item> 
+            <Dropdown.Item onClick={() => handleSortSelect('essid')}>
+              SSID {apSort.field === 'essid' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
             <Dropdown.Item onClick={() => handleSortSelect('vendor')}>
               Vendor {apSort.field === 'vendor' && (apSort.asc ? '↑' : '↓')}
