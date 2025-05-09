@@ -13,7 +13,7 @@ import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
 import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter, FiDownload } from 'react-icons/fi';
-import { handleDownload } from '../utils/download';
+import { handleDownload, handleDownloadFile } from '../utils/download';
 import ScanHeader from '../components/ScanHeader';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
@@ -66,27 +66,25 @@ export default function ScanDetailPage() {
     if (scanId) load();
   }, [scanId, api, flash]);
 
+  // --- WICHTIG: Hier extrahieren wir nur den Dateinamen ---
   useEffect(() => {
     if (!scan) return;
-
-    // baue ein Mapping key->file aus dem geladenen scan
     const hf = {};
     scan.access_points.forEach(ap => {
       if (ap.handshake_file) {
-        hf[`${ap.bssid}|AP`] = ap.handshake_file;
+        hf[`${ap.bssid}|AP`] = ap.handshake_file.split('/').pop();
       }
       ap.clients.forEach(c => {
         if (c.handshake_file) {
-          hf[`${ap.bssid}|${c.mac}`] = c.handshake_file;
+          hf[`${ap.bssid}|${c.mac}`] = c.handshake_file.split('/').pop();
         }
       });
     });
     scan.unlinked_clients.forEach(c => {
       if (c.handshake_file) {
-        hf[c.mac] = c.handshake_file;
+        hf[c.mac] = c.handshake_file.split('/').pop();
       }
     });
-
     setHandshakeFiles(hf);
   }, [scan]);
 
@@ -214,11 +212,21 @@ export default function ScanDetailPage() {
 
   const renderHandshakeLink = (bssid, client) => {
     const key = `${bssid}|${client || 'AP'}`;
-    return handshakeFiles[key] ? (
-      <a href={`/scans/${handshakeFiles[key]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success d-inline-flex align-items-center">
+    const filename = handshakeFiles[key];
+    if (!filename) return null;
+    return (
+      <Button
+        variant="success"
+        size="sm"
+        className="ms-2 d-inline-flex align-items-center"
+        onClick={e => {
+          e.stopPropagation();
+          handleDownloadFile(filename, api.base_url, flash);
+        }}
+      >
         <FiDownload className="me-1" />Handshake
-      </a>
-    ) : null;
+      </Button>
+    );
   };
 
   // Rescan handlers
@@ -265,7 +273,7 @@ export default function ScanDetailPage() {
       <Button variant="primary" className="mb-3" onClick={() => navigate('/scans')}>Übersicht</Button>
       <ScanHeader
         scan={scan}
-        onDownload={() => handleDownload(scan)}
+        onDownload={() => handleDownload(scan, flash)}
       />
       <div className="d-flex justify-content-between align-items-center mt-4">
         <h4>Access Points</h4>
@@ -371,30 +379,24 @@ export default function ScanDetailPage() {
                     <h5>{ap.essid || '<Hidden>'}</h5>
 
                     {/* Handshake-Download-Links unterhalb der Überschrift */}
-                    {(() => {
-                      // sammle alle Keys für diesen AP (AP-Handshake + Client-Handshakes)
-                      const keys = Object.keys(handshakeFiles)
-                        .filter(key => key.startsWith(`${ap.bssid}|`));
-                      if (keys.length === 0) return null;
-                      return (
-                        <div className="mb-3">
-                          {keys.map(key => {
-                            const file = handshakeFiles[key];
-                            return (
-                              <a
-                                key={key}
-                                href={`/scans/${file}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-success me-2"
-                              >
-                                <FiDownload className="me-1" />Handshake
-                              </a>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
+                    {Object.entries(handshakeFiles)
+                      .filter(([key]) => key.startsWith(`${ap.bssid}|`))
+                      .map(([key, filename]) => (
+                        <Button
+                          key={key}
+                          variant="outline-success"
+                          size="sm"
+                          className="me-2"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDownloadFile(filename, api.base_url, flash);
+                          }}
+                        >
+                          <FiDownload className="me-1" />
+                          Handshake
+                        </Button>
+                      ))
+                    }
 
                     <Table size="sm" borderless className="mb-0">
                       <tbody>
