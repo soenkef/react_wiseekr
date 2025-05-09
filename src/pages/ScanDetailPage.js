@@ -483,6 +483,8 @@ export default function ScanDetailPage() {
                             <ListGroup.Item><strong>Last Seen:</strong> <TimeAgo isoDate={client.last_seen} /></ListGroup.Item>
                             <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
                             <ListGroup.Item className="d-flex gap-2">
+                              {/* Spinner beim Client-Deauth */}
+                              {renderDeauthStatus(null, client.mac)}
                               <Button
                                 variant="outline-danger"
                                 size="sm"
