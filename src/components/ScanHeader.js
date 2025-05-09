@@ -11,7 +11,7 @@ export default function ScanHeader({ scan, onDownload }) {
   const date = scan.created_at
     ? new Date(scan.created_at).toLocaleString('de-DE')
     : '–'
-  
+
   // Anzahl der gefundenen Access Points
   const apCount = scan.access_points ? scan.access_points.length : 0;
 
@@ -21,14 +21,15 @@ export default function ScanHeader({ scan, onDownload }) {
         {/* Linke Seite: Scan-Titel + Zeit */}
         <div>
           <h5 className="mb-0">
-            Scan: <br /><small className="text-muted">{date}</small>
+            Scan: <br />
           </h5>
-          {scan.created_at && (
-            <>(<TimeAgo
-              isoDate={scan.created_at}
-              className="text-muted small"
-            />)</>
-          )}
+          {date ? new Date(date).toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : '–'} (<TimeAgo isoDate={date} />)
         </div>
 
         {/* Rechte Seite: Download-Button */}
