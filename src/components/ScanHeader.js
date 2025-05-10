@@ -8,9 +8,7 @@ import TimeAgo from '../components/TimeAgo'
 import { formatFileSize } from '../utils/format'
 
 export default function ScanHeader({ scan, onDownload }) {
-  const date = scan.created_at
-    ? new Date(scan.created_at).toLocaleString('de-DE')
-    : '–'
+  const createdDate = scan.created_at ? new Date(scan.created_at) : null;
 
   // Anzahl der gefundenen Access Points
   const apCount = scan.access_points ? scan.access_points.length : 0;
@@ -23,13 +21,13 @@ export default function ScanHeader({ scan, onDownload }) {
           <h5 className="mb-0">
             Scan: <br />
           </h5>
-          {date ? new Date(date).toLocaleString('de-DE', {
+          {createdDate ? new Date(createdDate).toLocaleString('de-DE', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
-          }) : '–'} (<TimeAgo isoDate={date} />)
+          }) : '–'} (<TimeAgo isoDate={createdDate} />)
         </div>
 
         {/* Rechte Seite: Download-Button */}
