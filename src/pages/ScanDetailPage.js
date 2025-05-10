@@ -221,7 +221,7 @@ export default function ScanDetailPage() {
         className="ms-2 d-inline-flex align-items-center"
         onClick={e => {
           e.stopPropagation();
-          handleDownloadFile(filename, api.base_url, flash);
+          handleDownloadFile(scanId, filename, api.base_url, flash);
         }}
       >
         <FiDownload className="me-1" />Handshake
@@ -273,7 +273,7 @@ export default function ScanDetailPage() {
       <Button variant="primary" className="mb-3" onClick={() => navigate('/scans')}>Übersicht</Button>
       <ScanHeader
         scan={scan}
-        onDownload={() => handleDownload(scan, flash)}
+        onDownload={() => handleDownload(scan, api.base_url, flash)}
       />
       <div className="d-flex justify-content-between align-items-center mt-4">
         <h4>Access Points</h4>
@@ -285,7 +285,7 @@ export default function ScanDetailPage() {
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => handleSortSelect('power')}>
               Power {apSort.field === 'power' && (apSort.asc ? '↑' : '↓')}
-            </Dropdown.Item> 
+            </Dropdown.Item>
             <Dropdown.Item onClick={() => handleSortSelect('essid')}>
               SSID {apSort.field === 'essid' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
@@ -329,7 +329,16 @@ export default function ScanDetailPage() {
                       variant="success"
                       size="sm"
                       className="flex-fill ap-action-btn"
-                      onClick={e => { e.stopPropagation(); /* Download-Handler */ }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        const filename = handshakeFiles[`${ap.bssid}|AP`];
+                        handleDownloadFile(
+                          scanId,           // 1️⃣ Scan-ID
+                          filename,         // 2️⃣ Dateiname
+                          api.base_url,     // 3️⃣ baseUrl (z.B. '/api' oder vollständige URL)
+                          flash             // 4️⃣ flash-Funktion
+                        );
+                      }}
                     >
                       Handshake
                     </Button>
@@ -392,7 +401,7 @@ export default function ScanDetailPage() {
                           className="me-2"
                           onClick={e => {
                             e.stopPropagation();
-                            handleDownloadFile(filename, api.base_url, flash);
+                            handleDownloadFile(scanId, filename, api.base_url, flash);
                           }}
                         >
                           <FiDownload className="me-1" />
