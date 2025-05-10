@@ -12,8 +12,9 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter, FiDownload } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter, FiDownload, FiWifiOff, FiRefreshCw, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { handleDownload, handleDownloadFile } from '../utils/download';
+import { formatUtcDate } from '../utils/format';
 import ScanHeader from '../components/ScanHeader';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
@@ -322,7 +323,7 @@ export default function ScanDetailPage() {
                     className="flex-fill ap-action-btn"
                     onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}
                   >
-                    Deauth
+                    <FiWifiOff /> Deauth
                   </Button>
                   {handshakeFiles[`${ap.bssid}|AP`] && (
                     <Button
@@ -350,15 +351,16 @@ export default function ScanDetailPage() {
                     disabled={activeRescans[ap.bssid]}
                     onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}
                   >
-                    Rescan
+                    <FiRefreshCw />
                   </Button>
                   <Button
                     variant="outline-primary"
                     size="sm"
                     className="flex-fill ap-action-btn"
                     onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}
+                    title={openMap[ap.bssid] ? 'Details ausblenden' : 'Details anzeigen'}
                   >
-                    {openMap[ap.bssid] ? 'Hide' : 'Details'}
+                    {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
                   </Button>
                 </ButtonGroup>
               </div>
@@ -387,8 +389,8 @@ export default function ScanDetailPage() {
                         </pre>
                       </div>
                     )}
-                    <h5>Access Point Informationen</h5>
                     <h5>{ap.essid || '<Hidden>'}</h5>
+                    <hr />
 
                     {/* Handshake-Download-Links unterhalb der Überschrift */}
                     {Object.entries(handshakeFiles)
@@ -430,21 +432,9 @@ export default function ScanDetailPage() {
                         </tr>
                         <tr>
                           <td><strong>First Seen:</strong></td>
-                          <td>{ap.first_seen ? new Date(ap.first_seen).toLocaleString('de-DE', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : '–'} (<TimeAgo isoDate={ap.first_seen} />)</td>
+                          <td>{ap.first_seen ? formatUtcDate(ap.first_seen) : '–'}</td>
                           <td><strong>Last Seen:</strong></td>
-                          <td>{ap.last_seen ? new Date(ap.last_seen).toLocaleString('de-DE', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : '–'} (<TimeAgo isoDate={ap.last_seen} />)</td>
+                          <td>{ap.last_seen ? formatUtcDate(ap.last_seen) : '–'}</td>
                         </tr>
                         <tr>
                           <td><strong>Speed:</strong></td>
@@ -476,6 +466,12 @@ export default function ScanDetailPage() {
                           <td><strong>Key:</strong></td>
                           <td>{ap.key || '–'}</td>
                         </tr>
+                        <tr>
+                          <td><strong>Angemeldete Clients:</strong></td>
+                          <td>{ap.clients.length}</td>
+                          <td><strong>Kameras:</strong></td>
+                          <td>{ap.clients.filter(c => c.is_camera).length}</td>
+                        </tr>
                       </tbody>
                     </Table>
                   </Card.Body>
@@ -486,15 +482,17 @@ export default function ScanDetailPage() {
                     {ap.clients.map(client => (
                       <Card key={client.mac} className="mb-2 w-100 w-md-50">
                         <Card.Body>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <strong>{client.mac}</strong>
-                            {client.is_camera && <FiAlertTriangle className="text-warning" />}
-                          </div>
                           <ListGroup variant="flush">
+                            <ListGroup.Item>
+                              <strong>
+                                {client.is_camera && <FiAlertTriangle className="text-warning" />} MAC:&nbsp;
+                              </strong>
+                              {client.mac || '–'}
+                            </ListGroup.Item>
                             <ListGroup.Item><strong>Vendor:</strong> {client.vendor || '–'}</ListGroup.Item>
                             <ListGroup.Item><strong>Power:</strong> {client.power}</ListGroup.Item>
-                            <ListGroup.Item><strong>First Seen:</strong> <TimeAgo isoDate={client.first_seen} /></ListGroup.Item>
-                            <ListGroup.Item><strong>Last Seen:</strong> <TimeAgo isoDate={client.last_seen} /></ListGroup.Item>
+                            <ListGroup.Item><strong>First Seen:</strong> {formatUtcDate(client.first_seen)}</ListGroup.Item> 
+                            <ListGroup.Item><strong>Last Seen:</strong> {formatUtcDate(client.last_seen)}</ListGroup.Item>
                             <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
                             <ListGroup.Item className="d-flex gap-2">
                               {/* Spinner beim Client-Deauth */}
