@@ -146,23 +146,36 @@ export default function ScanOverviewPage() {
 
   return (
     <Body>
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-        <h2 className="me-3">Alle Scans</h2>
-        <div className="d-flex flex-wrap align-items-center gap-2">
-          {scanStart !== null && (
-            <div className="text-center me-2" style={{ minWidth: 160 }}>
-              <small>Scan läuft</small>
-              <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
-            </div>
-          )}
-          {user?.id === 1 && (
-            <Button variant="danger" onClick={() => setShowClearModal(true)} disabled={importing}>
-              Alle Daten löschen
+      <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+        <h2 className="me-3 mb-2 mb-sm-0">Alle Scans</h2>
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2 w-100 w-sm-auto">
+          {/* Buttons immer zuerst */}
+          <div className="d-flex gap-2">
+            {user?.id === 1 && (
+              <Button variant="danger" onClick={() => setShowClearModal(true)} disabled={importing}>
+                Alle Daten löschen
+              </Button>
+            )}
+            <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
+              Scan starten
             </Button>
+          </div>
+
+          {/* Progressbar: auf XS immer volle Breite unter den Buttons, ab SM ganz normal links daneben */}
+          {scanStart !== null && (
+            <>
+              {/* mobile-only */}
+              <div className="w-100 d-block d-sm-none mt-2">
+                <small>Scan läuft</small>
+                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
+              </div>
+              {/* desktop-only */}
+              <div className="d-none d-sm-block text-center ms-2" style={{ minWidth: 160 }}>
+                <small>Scan läuft</small>
+                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
+              </div>
+            </>
           )}
-          <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
-            Scan starten
-          </Button>
         </div>
       </div>
 
@@ -177,7 +190,6 @@ export default function ScanOverviewPage() {
       <Table striped hover responsive className="align-middle">
         <thead>
           <tr>
-            <th>ID</th>
             <th>Erstellt am</th>
             <th>Beschreibung</th>
             <th>Ort</th>
@@ -187,7 +199,6 @@ export default function ScanOverviewPage() {
         <tbody>
           {filteredScans.map(s => (
             <tr key={s.id} onClick={e => !e.target.closest('button') && handleNavigate(s.id)} style={{ cursor: 'pointer' }}>
-              <td>{s.id}</td>
               <td>
                 {s.created_at ? new Date(s.created_at).toLocaleString('de-DE', {
                   day: '2-digit',
@@ -195,23 +206,29 @@ export default function ScanOverviewPage() {
                   year: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit'
-                }) : '–'} (<TimeAgo isoDate={s.created_at} />)
+                }) : '–'}
+                <br /><small className="text-muted">(<TimeAgo isoDate={s.created_at} />)</small>
               </td>
               <td>
-                {s.description}
-                {' '}
+                {s.description
+                  ? s.description
+                  : <em>keine Beschreibung</em>
+                }
                 <small className="text-muted">
                   <br />({s.access_points_count} Access Points gefunden)
                 </small>
               </td>
-              <td>{s.location}</td>
+              <td>{s.location
+                ? s.location
+                : <em>kein Ort</em>
+              }</td>
               <td>
-                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 justify-content-end">
+                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 flex-wrap justify-content-end">
                   {s.filename ? (
                     <Button
                       variant="outline-secondary"
                       size="sm"
-                      className="flex-fill ap-action-btn"
+                      className="ap-action-btn"
                       onClick={e => { e.stopPropagation(); handleDownloadAll(s, api.base_url, flash); }}
                     >
                       <FiDownload />
@@ -220,7 +237,7 @@ export default function ScanOverviewPage() {
                     <Button
                       variant="outline-secondary"
                       size="sm"
-                      className="flex-fill ap-action-btn"
+                      className="ap-action-btn"
                       disabled
                     >
                       –
@@ -229,7 +246,7 @@ export default function ScanOverviewPage() {
                   <Button
                     variant="outline-danger"
                     size="sm"
-                    className="flex-fill ap-action-btn"
+                    className="ap-action-btn"
                     onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}
                   >
                     <FiTrash />

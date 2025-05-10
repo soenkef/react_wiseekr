@@ -46,10 +46,16 @@ export default function ScanHeader({ scan, onDownload }) {
           <Col md={6}>
             <dl className="row mb-0">
               <dt className="col-sm-4">Beschreibung:</dt>
-              <dd className="col-sm-8">{scan.description || '–'}</dd>
+              <dd className="col-sm-8">{scan.description
+                  ? scan.description
+                  : <em>keine Beschreibung</em>
+                }</dd>
 
               <dt className="col-sm-4">Ort:</dt>
-              <dd className="col-sm-8">{scan.location || '–'}</dd>
+              <dd className="col-sm-8">{scan.location
+                ? scan.location
+                : <em>kein Ort</em>
+              }</dd>
             </dl>
           </Col>
           <Col md={6}>

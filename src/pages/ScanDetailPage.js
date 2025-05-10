@@ -21,6 +21,8 @@ import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
+import Row from 'react-bootstrap/Row'
+import Col from 'react-bootstrap/Col'
 
 export default function ScanDetailPage() {
   const { id } = useParams();
@@ -311,8 +313,8 @@ export default function ScanDetailPage() {
                 {/* Name mit truncation nur auf kleineren Bildschirmen */}
                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
                   <strong className="ap-name">
-                    {ap.essid || '<Hidden>'}
                     {hasCamClient && <FiAlertTriangle className="text-warning ms-1" />}
+                    {ap.essid || '<Hidden>'}
                   </strong>
                 </div>
                 <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0">
@@ -389,93 +391,108 @@ export default function ScanDetailPage() {
                         </pre>
                       </div>
                     )}
-                    <h5>{ap.essid || '<Hidden>'}</h5>
+
+
+
+                    <Row className="gy-2">
+                      <Col xs={12} md={6}>
+                        <strong>SSID: </strong> {hasCamClient && <FiAlertTriangle className="text-warning ms-1" />}
+                        {ap.essid || '<Hidden>'}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>BSSID:</strong> {ap.bssid}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Channel:</strong> {ap.channel}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>Vendor:</strong> {ap.vendor || '–'}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Camera:</strong> {ap.is_camera ? 'Yes' : 'No'}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>First Seen:</strong> {formatUtcDate(ap.first_seen)}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Last Seen:</strong> {formatUtcDate(ap.last_seen)}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>Speed:</strong> {ap.speed}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Privacy:</strong> {ap.privacy}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>Cipher:</strong> {ap.cipher}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Authentication:</strong> {ap.authentication}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>Power:</strong> {ap.power}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Beacons:</strong> {ap.beacons}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>IV:</strong> {ap.iv}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>LAN IP:</strong> {ap.lan_ip}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>ID-length:</strong> {ap.id_length}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Key:</strong> {ap.key || '–'}
+                      </Col>
+
+                      <Col xs={12} md={6}>
+                        <strong>Clients:</strong> {ap.clients.length}
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <strong>Kameras:</strong> {ap.clients.filter(c => c.is_camera).length}
+                      </Col>
+
+                    </Row>
                     <hr />
+                    <Row className="gy-2">
+                      <Col xs={12} md={6}>
+                        {/* Handshake-Download-Links unterhalb der Überschrift */}
+                        {Object.entries(handshakeFiles)
+                          .filter(([key]) => key.startsWith(`${ap.bssid}|`))
+                          .map(([key, filename]) => (
+                            <Button
+                              key={key}
+                              variant="outline-success"
+                              size="sm"
+                              className="me-2"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleDownloadFile(scanId, filename, api.base_url, flash);
+                              }}
+                            > 
+                              <FiDownload className="me-1" />
+                              Handshake
+                            </Button>
+                          ))
+                        }
+                      </Col>
+                    </Row>
 
-                    {/* Handshake-Download-Links unterhalb der Überschrift */}
-                    {Object.entries(handshakeFiles)
-                      .filter(([key]) => key.startsWith(`${ap.bssid}|`))
-                      .map(([key, filename]) => (
-                        <Button
-                          key={key}
-                          variant="outline-success"
-                          size="sm"
-                          className="me-2"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleDownloadFile(scanId, filename, api.base_url, flash);
-                          }}
-                        >
-                          <FiDownload className="me-1" />
-                          Handshake
-                        </Button>
-                      ))
-                    }
-
-                    <Table size="sm" borderless className="mb-0">
-                      <tbody>
-                        <tr>
-                          <td><strong>BSSID:</strong></td>
-                          <td>{ap.bssid}</td>
-                          <td><strong>Channel:</strong></td>
-                          <td>{ap.channel}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>Vendor:</strong></td>
-                          <td>{ap.vendor || '–'}</td>
-                          <td><strong>Camera:</strong></td>
-                          <td>
-                            {ap.is_camera
-                              ? <><FiAlertTriangle className="text-warning me-1" />Detected</>
-                              : 'No'}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td><strong>First Seen:</strong></td>
-                          <td>{ap.first_seen ? formatUtcDate(ap.first_seen) : '–'}</td>
-                          <td><strong>Last Seen:</strong></td>
-                          <td>{ap.last_seen ? formatUtcDate(ap.last_seen) : '–'}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>Speed:</strong></td>
-                          <td>{ap.speed}</td>
-                          <td><strong>Privacy:</strong></td>
-                          <td>{ap.privacy}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>Cipher:</strong></td>
-                          <td>{ap.cipher}</td>
-                          <td><strong>Authentication:</strong></td>
-                          <td>{ap.authentication}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>Power:</strong></td>
-                          <td>{ap.power}</td>
-                          <td><strong>Beacons:</strong></td>
-                          <td>{ap.beacons}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>IV:</strong></td>
-                          <td>{ap.iv}</td>
-                          <td><strong>LAN IP:</strong></td>
-                          <td>{ap.lan_ip}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>ID-length:</strong></td>
-                          <td>{ap.id_length}</td>
-                          <td><strong>Key:</strong></td>
-                          <td>{ap.key || '–'}</td>
-                        </tr>
-                        <tr>
-                          <td><strong>Angemeldete Clients:</strong></td>
-                          <td>{ap.clients.length}</td>
-                          <td><strong>Kameras:</strong></td>
-                          <td>{ap.clients.filter(c => c.is_camera).length}</td>
-                        </tr>
-                      </tbody>
-                    </Table>
                   </Card.Body>
                 </Card>
+
+                <hr />
+                <h5>{ap.clients.length} Clients an {ap.essid || '<Hidden>'}</h5>
 
                 {ap.clients.length === 0 ? <p>Keine Clients verbunden.</p> : (
                   <div className="d-flex flex-wrap">
@@ -491,19 +508,25 @@ export default function ScanDetailPage() {
                             </ListGroup.Item>
                             <ListGroup.Item><strong>Vendor:</strong> {client.vendor || '–'}</ListGroup.Item>
                             <ListGroup.Item><strong>Power:</strong> {client.power}</ListGroup.Item>
-                            <ListGroup.Item><strong>First Seen:</strong> {formatUtcDate(client.first_seen)}</ListGroup.Item> 
+                            <ListGroup.Item><strong>First Seen:</strong> {formatUtcDate(client.first_seen)}</ListGroup.Item>
                             <ListGroup.Item><strong>Last Seen:</strong> {formatUtcDate(client.last_seen)}</ListGroup.Item>
                             <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
-                            <ListGroup.Item className="d-flex gap-2">
+                            <ListGroup.Item className="d-flex align-items-center gap-2">
+                              {(() => {
+                                const key = `${ap.bssid}|${client.mac}`;
+                                return (
+                                  <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    disabled={!!activeDeauths[key]}
+                                    onClick={() => handleDeauthClient(ap.bssid, client.mac)}
+                                  >
+                                    <FiWifiOff /> Deauth
+                                  </Button>
+                                );
+                              })()}
                               {/* Spinner beim Client-Deauth */}
-                              {renderDeauthStatus(null, client.mac)}
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => handleDeauthClient(ap.bssid, client.mac)}
-                              >
-                                Deauth
-                              </Button>
+                              {renderDeauthStatus(ap.bssid, client.mac)}
                               {renderHandshakeLink(ap.bssid, client.mac)}
                             </ListGroup.Item>
                           </ListGroup>
