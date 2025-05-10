@@ -12,20 +12,24 @@ export default function ScanHeader({ scan, onDownload }) {
     ? new Date(scan.created_at).toLocaleString('de-DE')
     : '–'
 
+  // Anzahl der gefundenen Access Points
+  const apCount = scan.access_points ? scan.access_points.length : 0;
+
   return (
     <Card className="mb-4">
       <Card.Header className="d-flex justify-content-between align-items-center">
         {/* Linke Seite: Scan-Titel + Zeit */}
         <div>
           <h5 className="mb-0">
-            Scan: <br /><small className="text-muted">{date}</small>
+            Scan: <br />
           </h5>
-          {scan.created_at && (
-            <>(<TimeAgo
-              isoDate={scan.created_at}
-              className="text-muted small"
-            />)</>
-          )}
+          {date ? new Date(date).toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : '–'} (<TimeAgo isoDate={date} />)
         </div>
 
         {/* Rechte Seite: Download-Button */}
@@ -43,23 +47,23 @@ export default function ScanHeader({ scan, onDownload }) {
         <Row>
           <Col md={6}>
             <dl className="row mb-0">
-              <dt className="col-sm-4">Beschreibung</dt>
+              <dt className="col-sm-4">Beschreibung:</dt>
               <dd className="col-sm-8">{scan.description || '–'}</dd>
 
-              <dt className="col-sm-4">Ort</dt>
+              <dt className="col-sm-4">Ort:</dt>
               <dd className="col-sm-8">{scan.location || '–'}</dd>
             </dl>
           </Col>
           <Col md={6}>
             <dl className="row mb-0">
-              <dt className="col-sm-4">Dauer</dt>
+              <dt className="col-sm-4">Dauer:</dt>
               <dd className="col-sm-8">{scan.duration ? `${scan.duration}s` : '–'}</dd>
 
-             <dt className="col-sm-4">Dateigröße</dt>
-             <dd className="col-sm-8">
-               {formatFileSize(scan.filesize)}
-             </dd>
+              <dt className="col-sm-4">Dateigröße:</dt>
+              <dd className="col-sm-8">{formatFileSize(scan.filesize)}</dd>
 
+              <dt className="col-sm-4">Access Points:</dt>
+              <dd className="col-sm-8">{apCount}</dd>
             </dl>
           </Col>
         </Row>

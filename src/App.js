@@ -16,7 +16,6 @@ import EditUserPage from './pages/EditUserPage';
 import ResetRequestPage from './pages/ResetRequestPage';
 import ResetPage from './pages/ResetPage';
 import ScanStreamPage from './pages/ScanStreamPage';
-import ScanResultsPage from './pages/ScanResultsPage';
 import ScanOverviewPage from './pages/ScanOverviewPage';
 import ScanDetailPage from './pages/ScanDetailPage';
 import SettingsPage from './pages/SettingsPage';
@@ -50,7 +49,6 @@ export default function App() {
                         <Route path="/feed" element={<FeedPage />} />
                         <Route path="/user/:username" element={<UserPage />} />
 
-                        <Route path="/scan-results" element={<ScanResultsPage />} />
                         <Route path="/scans" element={<ScanOverviewPage />} />
                         <Route path="/scan/:id" element={<ScanDetailPage />} />
 

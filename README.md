@@ -249,27 +249,27 @@ docker network ls -q | xargs -r docker network rm
 docker compose down -v --remove-orphans
 
 ## oneliner
-docker stop $(docker ps -aq) 2>/dev/null && \
-docker rm -f $(docker ps -aq) 2>/dev/null && \
-docker rmi -f $(docker images -aq) 2>/dev/null && \
-docker volume rm -f $(docker volume ls -q) 2>/dev/null && \
-docker network rm $(docker network ls -q | grep -v "bridge\|host\|none") 2>/dev/null
+sudo docker stop $(sudo docker ps -aq) 2>/dev/null && \
+sudo docker rm -f $(sudo docker ps -aq) 2>/dev/null && \
+sudo docker rmi -f $(sudo docker images -aq) 2>/dev/null && \
+sudo docker volume rm -f $(sudo docker volume ls -q) 2>/dev/null && \
+sudo docker network rm $(sudo docker network ls -q | grep -v "bridge\|host\|none") 2>/dev/null
 
 # check
-docker system prune -a --volumes -f  # falls noch Reste da sind
-docker info                         # check, ob alles leer ist
+sudo docker system prune -a --volumes -f  # falls noch Reste da sind
+sudo docker info                         # check, ob alles leer ist
 
 # run docker compose
-docker compose build
-docker compose up -d
+sudo docker compose build
+sudo docker compose up -d
 
 # open machine bash
 docker exec -it react-wiseekr-db-1 bash
 
 # errors
-docker compose run --rm api flask db stamp head
-docker compose exec api flask db stamp base
-docker compose exec db \
+sudo docker compose run --rm api flask db stamp head
+sudo docker compose exec api flask db stamp base
+sudo docker compose exec db \
   mariadb -u root -pamboss \
   -e "DELETE FROM alembic_version;"
 

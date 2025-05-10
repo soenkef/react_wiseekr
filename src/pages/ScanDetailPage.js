@@ -12,8 +12,8 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import TimeAgo from '../components/TimeAgo';
-import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter } from 'react-icons/fi';
-import { handleDownload } from '../utils/download';
+import { FiAlertTriangle, FiArrowUp, FiArrowDown, FiFilter, FiDownload } from 'react-icons/fi';
+import { handleDownload, handleDownloadFile } from '../utils/download';
 import ScanHeader from '../components/ScanHeader';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
@@ -66,27 +66,25 @@ export default function ScanDetailPage() {
     if (scanId) load();
   }, [scanId, api, flash]);
 
+  // --- WICHTIG: Hier extrahieren wir nur den Dateinamen ---
   useEffect(() => {
     if (!scan) return;
-
-    // baue ein Mapping key->file aus dem geladenen scan
     const hf = {};
     scan.access_points.forEach(ap => {
       if (ap.handshake_file) {
-        hf[`${ap.bssid}|AP`] = ap.handshake_file;
+        hf[`${ap.bssid}|AP`] = ap.handshake_file.split('/').pop();
       }
       ap.clients.forEach(c => {
         if (c.handshake_file) {
-          hf[`${ap.bssid}|${c.mac}`] = c.handshake_file;
+          hf[`${ap.bssid}|${c.mac}`] = c.handshake_file.split('/').pop();
         }
       });
     });
     scan.unlinked_clients.forEach(c => {
       if (c.handshake_file) {
-        hf[c.mac] = c.handshake_file;
+        hf[c.mac] = c.handshake_file.split('/').pop();
       }
     });
-
     setHandshakeFiles(hf);
   }, [scan]);
 
@@ -214,11 +212,21 @@ export default function ScanDetailPage() {
 
   const renderHandshakeLink = (bssid, client) => {
     const key = `${bssid}|${client || 'AP'}`;
-    return handshakeFiles[key] ? (
-      <a href={`/scans/${handshakeFiles[key]}`} target="_blank" rel="noopener noreferrer" className="ms-2 btn btn-sm btn-outline-success">
-        Handshake
-      </a>
-    ) : null;
+    const filename = handshakeFiles[key];
+    if (!filename) return null;
+    return (
+      <Button
+        variant="success"
+        size="sm"
+        className="ms-2 d-inline-flex align-items-center"
+        onClick={e => {
+          e.stopPropagation();
+          handleDownloadFile(scanId, filename, api.base_url, flash);
+        }}
+      >
+        <FiDownload className="me-1" />Handshake
+      </Button>
+    );
   };
 
   // Rescan handlers
@@ -265,7 +273,7 @@ export default function ScanDetailPage() {
       <Button variant="primary" className="mb-3" onClick={() => navigate('/scans')}>Übersicht</Button>
       <ScanHeader
         scan={scan}
-        onDownload={() => handleDownload(scan)}
+        onDownload={() => handleDownload(scan, api.base_url, flash)}
       />
       <div className="d-flex justify-content-between align-items-center mt-4">
         <h4>Access Points</h4>
@@ -276,13 +284,16 @@ export default function ScanDetailPage() {
           <Dropdown.Toggle split variant="outline-secondary" id="dropdown-split-basic" size="sm" />
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => handleSortSelect('power')}>
-              Power {apSort.field==='power' && (apSort.asc? '↑':'↓')}
+              Power {apSort.field === 'power' && (apSort.asc ? '↑' : '↓')}
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleSortSelect('essid')}>
+              SSID {apSort.field === 'essid' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
             <Dropdown.Item onClick={() => handleSortSelect('vendor')}>
-              Vendor {apSort.field==='vendor' && (apSort.asc? '↑':'↓')}
+              Vendor {apSort.field === 'vendor' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
             <Dropdown.Item onClick={() => handleSortSelect('last_seen')}>
-              Last Seen {apSort.field==='last_seen' && (apSort.asc? '↑':'↓')}
+              Last Seen {apSort.field === 'last_seen' && (apSort.asc ? '↑' : '↓')}
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
@@ -318,7 +329,16 @@ export default function ScanDetailPage() {
                       variant="success"
                       size="sm"
                       className="flex-fill ap-action-btn"
-                      onClick={e => { e.stopPropagation(); /* Download-Handler */ }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        const filename = handshakeFiles[`${ap.bssid}|AP`];
+                        handleDownloadFile(
+                          scanId,           // 1️⃣ Scan-ID
+                          filename,         // 2️⃣ Dateiname
+                          api.base_url,     // 3️⃣ baseUrl (z.B. '/api' oder vollständige URL)
+                          flash             // 4️⃣ flash-Funktion
+                        );
+                      }}
                     >
                       Handshake
                     </Button>
@@ -368,32 +388,27 @@ export default function ScanDetailPage() {
                       </div>
                     )}
                     <h5>Access Point Informationen</h5>
+                    <h5>{ap.essid || '<Hidden>'}</h5>
 
                     {/* Handshake-Download-Links unterhalb der Überschrift */}
-                    {(() => {
-                      // sammle alle Keys für diesen AP (AP-Handshake + Client-Handshakes)
-                      const keys = Object.keys(handshakeFiles)
-                        .filter(key => key.startsWith(`${ap.bssid}|`));
-                      if (keys.length === 0) return null;
-                      return (
-                        <div className="mb-3">
-                          {keys.map(key => {
-                            const file = handshakeFiles[key];
-                            return (
-                              <a
-                                key={key}
-                                href={`/scans/${file}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-success me-2"
-                              >
-                                Handshake herunterladen ({file})
-                              </a>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
+                    {Object.entries(handshakeFiles)
+                      .filter(([key]) => key.startsWith(`${ap.bssid}|`))
+                      .map(([key, filename]) => (
+                        <Button
+                          key={key}
+                          variant="outline-success"
+                          size="sm"
+                          className="me-2"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDownloadFile(scanId, filename, api.base_url, flash);
+                          }}
+                        >
+                          <FiDownload className="me-1" />
+                          Handshake
+                        </Button>
+                      ))
+                    }
 
                     <Table size="sm" borderless className="mb-0">
                       <tbody>
@@ -467,63 +482,37 @@ export default function ScanDetailPage() {
                 </Card>
 
                 {ap.clients.length === 0 ? <p>Keine Clients verbunden.</p> : (
-                  <Table size="sm" striped bordered>
-                    <thead>
-                      <tr>
-                        <th>MAC</th>
-                        <th>Vendor</th>
-                        <th>Camera</th>
-                        <th>Power</th>
-                        <th>First Seen</th>
-                        <th>Last Seen</th>
-                        <th>Probed ESSIDs</th>
-                        <th>Aktion</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ap.clients.map(client => (
-                        <tr key={client.mac}>
-                          <td>{client.mac}</td>
-                          <td>{client.vendor || '–'}</td>
-                          <td>
-                            {client.is_camera
-                              ? <><FiAlertTriangle className="text-warning me-1" />Detected</>
-                              : 'No'}
-                          </td>
-                          <td>{client.power}</td>
-                          <td>{client.first_seen ? new Date(client.first_seen).toLocaleString('de-DE', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : '–'} (<TimeAgo isoDate={client.first_seen} />)</td>
-                          <td>{client.last_seen ? new Date(client.last_seen).toLocaleString('de-DE', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : '–'} (<TimeAgo isoDate={client.last_seen} />)</td>
-                          <td>{client.probed_essids}</td>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeauthClient(ap.bssid, client.mac)}>
+                  <div className="d-flex flex-wrap">
+                    {ap.clients.map(client => (
+                      <Card key={client.mac} className="mb-2 w-100 w-md-50">
+                        <Card.Body>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <strong>{client.mac}</strong>
+                            {client.is_camera && <FiAlertTriangle className="text-warning" />}
+                          </div>
+                          <ListGroup variant="flush">
+                            <ListGroup.Item><strong>Vendor:</strong> {client.vendor || '–'}</ListGroup.Item>
+                            <ListGroup.Item><strong>Power:</strong> {client.power}</ListGroup.Item>
+                            <ListGroup.Item><strong>First Seen:</strong> <TimeAgo isoDate={client.first_seen} /></ListGroup.Item>
+                            <ListGroup.Item><strong>Last Seen:</strong> <TimeAgo isoDate={client.last_seen} /></ListGroup.Item>
+                            <ListGroup.Item><strong>Probed ESSIDs:</strong> {client.probed_essids}</ListGroup.Item>
+                            <ListGroup.Item className="d-flex gap-2">
+                              {/* Spinner beim Client-Deauth */}
+                              {renderDeauthStatus(null, client.mac)}
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => handleDeauthClient(ap.bssid, client.mac)}
+                              >
                                 Deauth
                               </Button>
-                              {renderDeauthStatus(ap.bssid, client.mac)}
                               {renderHandshakeLink(ap.bssid, client.mac)}
-                              {handshakeFiles[`${ap.bssid}|${client.mac}`] && (
-                                <span className="ms-2 text-success">
-                                  Handshake captured!
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
+                            </ListGroup.Item>
+                          </ListGroup>
+                        </Card.Body>
+                      </Card>
+                    ))}
+                  </div>
                 )}
               </Card.Body>
             </Collapse>

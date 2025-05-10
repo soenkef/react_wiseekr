@@ -12,8 +12,9 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
-import { FiDownload } from 'react-icons/fi';
-import { handleDownload } from '../utils/download';
+import { FiDownload, FiTrash } from 'react-icons/fi';
+import { handleDownloadAll } from '../utils/download';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
 export default function ScanOverviewPage() {
   const [search, setSearch] = useState('');
@@ -102,28 +103,38 @@ export default function ScanOverviewPage() {
     setShowNewScanModal(false);
     flash('Scan wurde gestartet. Bitte habe etwas Geduld.', 'success');
     setImporting(true);
+
     try {
-      const payload = {
-        duration,
-        description: newScan.description,
-        location: newScan.location,
-      };
+      const payload = { duration, description: newScan.description, location: newScan.location };
       const response = await api.post('/scan/start', payload);
-      if (response.ok) {
-        setScanOutput(response.body.output || 'Scan abgeschlossen.');
-        flash('Scan erfolgreich', 'success');
-        await loadScans();
-      } else {
-        setScanOutput(response.body?.error || 'Unbekannter Fehler beim Scan.');
-        flash(response.body?.error || 'Scan fehlgeschlagen.', 'danger');
+
+      if (!response.ok) {
+        // falls schon ein Scan läuft, bekommt ihr 400 + { error: "Ein Scan läuft bereits…" }
+        if (response.status === 400) {
+          flash(response.body.error, 'warning');
+        } else {
+          flash(response.body.error || 'Scan fehlgeschlagen.', 'danger');
+        }
+        // abbrechen und Fortschritts-UI zurücksetzen
+        setImporting(false);
+        setScanStart(null);
+        setProgress(0);
+        return;
       }
+
+      // on success
+      const { output } = response.body;
+      setScanOutput(output || 'Scan abgeschlossen.');
+      flash('Scan erfolgreich', 'success');
+      await loadScans();
+
     } catch {
+      flash('Netzwerkfehler beim Starten des Scans.', 'danger');
       setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
-      flash('Fehler beim Abrufen des Scan-Ergebnisses.', 'danger');
     } finally {
-      setProgress(100);
       setImporting(false);
       setScanStart(null);
+      setProgress(100);
       setNewScan({ description: '', location: '', duration });
       setInfinite(false);
     }
@@ -157,7 +168,7 @@ export default function ScanOverviewPage() {
 
       <Form.Control
         type="search"
-        placeholder="Suche nach Scan, Ort, Zeit..."
+        placeholder="Suche nach Scan, Ort, Zeit... - aktuell deaktiviert!"
         className="mb-3"
         value={search}
         onChange={e => setSearch(e.target.value)}
@@ -170,7 +181,6 @@ export default function ScanOverviewPage() {
             <th>Erstellt am</th>
             <th>Beschreibung</th>
             <th>Ort</th>
-            <th>Download</th>
             <th className="text-end">Aktionen</th>
           </tr>
         </thead>
@@ -179,22 +189,52 @@ export default function ScanOverviewPage() {
             <tr key={s.id} onClick={e => !e.target.closest('button') && handleNavigate(s.id)} style={{ cursor: 'pointer' }}>
               <td>{s.id}</td>
               <td>
-                {new Date(s.created_at).toLocaleString('de-DE')}<br/>
-                <small className="text-muted"><TimeAgo isoDate={s.created_at} /></small>
+                {s.created_at ? new Date(s.created_at).toLocaleString('de-DE', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) : '–'} (<TimeAgo isoDate={s.created_at} />)
               </td>
-              <td>{s.description}</td>
+              <td>
+                {s.description}
+                {' '}
+                <small className="text-muted">
+                  <br />({s.access_points_count} Access Points gefunden)
+                </small>
+              </td>
               <td>{s.location}</td>
-              <td className="text-center">
-                {s.filename
-                  ? <Button size="sm" variant="outline-secondary" onClick={e => { e.stopPropagation(); handleDownload(s); }}>
+              <td>
+                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 justify-content-end">
+                  {s.filename ? (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className="flex-fill ap-action-btn"
+                      onClick={e => { e.stopPropagation(); handleDownloadAll(s, api.base_url, flash); }}
+                    >
                       <FiDownload />
                     </Button>
-                  : '–'}
-              </td>
-              <td className="text-end">
-                <Button size="sm" variant="outline-danger" onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}>
-                  Löschen
-                </Button>
+                  ) : (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className="flex-fill ap-action-btn"
+                      disabled
+                    >
+                      –
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    className="flex-fill ap-action-btn"
+                    onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}
+                  >
+                    <FiTrash />
+                  </Button>
+                </ButtonGroup>
               </td>
             </tr>
           ))}
