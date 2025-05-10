@@ -13,7 +13,7 @@ import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { FiDownload, FiTrash } from 'react-icons/fi';
-import { handleDownload } from '../utils/download';
+import { handleDownloadAll } from '../utils/download';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
 export default function ScanOverviewPage() {
@@ -212,7 +212,7 @@ export default function ScanOverviewPage() {
                       variant="outline-secondary"
                       size="sm"
                       className="flex-fill ap-action-btn"
-                      onClick={e => { e.stopPropagation(); handleDownload(s); }}
+                      onClick={e => { e.stopPropagation(); handleDownloadAll(s, api.base_url, flash); }}
                     >
                       <FiDownload />
                     </Button>

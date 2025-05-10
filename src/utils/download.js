@@ -47,3 +47,38 @@ export async function handleDownloadFile(scanId, filename, baseUrl, flash) {
     flash('Download fehlgeschlagen', 'danger');
   }
 }
+
+
+/**
+ * Lädt alle Dateien eines Scans als ZIP-Archiv herunter.
+ *
+ * @param {{id:number}} scan
+ * @param {string} baseUrl
+ * @param {Function} flash
+ */
+export async function handleDownloadAll(scan, baseUrl, flash) {
+  try {
+    const url = `${baseUrl}/scans/${scan.id}/download_all`;
+    console.log('ZIP-Download URL:', url);
+    const resp = await fetch(url, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      return flash(err.error || 'Download fehlgeschlagen', 'danger');
+    }
+    const blob = await resp.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = `scan_${scan.id}_all_files.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch (e) {
+    console.error('Download-All-Fehler:', e);
+    flash('Download fehlgeschlagen', 'danger');
+  }
+}
