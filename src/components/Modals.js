@@ -46,4 +46,3 @@ export function RescanModal({ show, onHide, onSubmit }) {
     );
 }
 
-export default { DeauthModal, RescanModal };

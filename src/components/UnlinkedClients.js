@@ -1,70 +1,65 @@
-// ScanDetailPage.js (API Integration)
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useApi } from '../contexts/ApiProvider';
-import { useFlash } from '../contexts/FlashProvider';
-import Body from '../components/Body';
-import AccessPoints from '../components/AccessPoints';
-import UnlinkedClients from '../components/UnlinkedClients';
-import ScanHeader from '../components/ScanHeader';
-import { DeauthModal, RescanModal } from '../components/Modals';
+import React, { useState, useMemo } from 'react';
+import Card from 'react-bootstrap/Card';
+import Table from 'react-bootstrap/Table';
+import { FiArrowUp, FiArrowDown, FiAlertTriangle } from 'react-icons/fi';
+import TimeAgo from './TimeAgo';
 
-export default function ScanDetailPage() {
-    const { id } = useParams();
-    const scanId = parseInt(id, 10);
-    const navigate = useNavigate();
-    const api = useApi();
-    const flash = useFlash();
+export default function UnlinkedClients({ scan }) {
+  const [sort, setSort] = useState({ column: null, asc: true });
+  const list = useMemo(() => scan.unlinked_clients || [], [scan.unlinked_clients]);
 
-    const [scan, setScan] = useState(null);
-    const [showDeauthModal, setShowDeauthModal] = useState(false);
-    const [showRescanModal, setShowRescanModal] = useState(false);
+  const sorted = useMemo(() => {
+    if (!sort.column) return list;
+    return [...list].sort((a, b) => {
+      let av = a[sort.column] || '';
+      let bv = b[sort.column] || '';
+      if (av < bv) return sort.asc ? -1 : 1;
+      if (av > bv) return sort.asc ? 1 : -1;
+      return 0;
+    });
+  }, [list, sort]);
 
-    useEffect(() => {
-        const load = async () => {
-            const response = await api.get(`/scans/${scanId}`);
-            if (response.ok) setScan(response.body);
-            else flash('Scan nicht gefunden', 'danger');
-        };
-        if (scanId) load();
-    }, [scanId, api, flash]);
+  const toggleSort = col => setSort(p => ({ column: col, asc: p.column === col ? !p.asc : true }));
 
-    const handleDeauth = async (options) => {
-        try {
-            const response = await api.post(`/deauth/start`, {
-                scan_id: scanId,
-                packets: options.packets,
-                duration: options.duration
-            });
-            if (response.ok) flash('Deauth erfolgreich gestartet', 'success');
-            else throw new Error(response.body?.error || 'Deauth fehlgeschlagen');
-        } catch (error) {
-            flash(error.message, 'danger');
-        }
-    };
-
-    const handleRescan = async (options) => {
-        try {
-            const response = await api.post(`/scans/${scanId}/rescan`, {
-                duration: options.duration
-            });
-            if (response.ok) flash('Rescan erfolgreich gestartet', 'success');
-            else throw new Error(response.body?.error || 'Rescan fehlgeschlagen');
-        } catch (error) {
-            flash(error.message, 'danger');
-        }
-    };
-
-    if (!scan) return <Body><p>Lade Scan-Daten...</p></Body>;
-
-    return (
-        <Body>
-            <button onClick={() => navigate('/scans')}>Zurück zur Übersicht</button>
-            <ScanHeader scan={scan} />
-            <AccessPoints scan={scan} onDeauth={() => setShowDeauthModal(true)} onRescan={() => setShowRescanModal(true)} />
-            <UnlinkedClients scan={scan} />
-            <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} onSubmit={handleDeauth} />
-            <RescanModal show={showRescanModal} onHide={() => setShowRescanModal(false)} onSubmit={handleRescan} />
-        </Body>
-    );
+  return (
+    <Card className="mt-4">
+      <Card.Header><h5 className="mb-0">Clients ohne Access Point</h5></Card.Header>
+      <Card.Body className="p-0">
+        {list.length === 0 ? (
+          <p className="m-3 text-muted">Keine ungebundenen Clients.</p>
+        ) : (
+          <Table hover striped responsive className="mb-0">
+            <thead>
+              <tr>
+                <th onClick={() => toggleSort('mac')} style={{ cursor: 'pointer' }}>
+                  MAC {sort.column === 'mac' && (sort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                </th>
+                <th onClick={() => toggleSort('vendor')} style={{ cursor: 'pointer' }}>
+                  Vendor {sort.column === 'vendor' && (sort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                </th>
+                <th>Cam</th>
+                <th onClick={() => toggleSort('power')} style={{ cursor: 'pointer' }}>
+                  Power {sort.column === 'power' && (sort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                </th>
+                <th>First Seen</th>
+                <th>Last Seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(c => (
+                <tr key={c.mac}>
+                  <td className="text-monospace">{c.mac}</td>
+                  <td>{c.vendor || '–'}</td>
+                  <td>{c.is_camera ? <FiAlertTriangle className="text-warning" /> : 'No'}</td>
+                  <td>{c.power}</td>
+                  <td><TimeAgo isoDate={c.first_seen} /></td>
+                  <td><TimeAgo isoDate={c.last_seen} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card.Body>
+    </Card>
+  );
 }
