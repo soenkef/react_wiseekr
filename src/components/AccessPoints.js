@@ -1,56 +1,43 @@
-// src/components/AccessPoints.js
 import React, { useState, useEffect, useMemo } from 'react';
-import Card from 'react-bootstrap/Card';
-import Collapse from 'react-bootstrap/Collapse';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Spinner from 'react-bootstrap/Spinner';
-import ProgressBar from 'react-bootstrap/ProgressBar';
-import {
-  FiAlertTriangle,
-  FiFilter,
-  FiWifiOff,
-  FiDownload,
-  FiRefreshCw,
-  FiChevronDown,
-  FiChevronUp
-} from 'react-icons/fi';
+import { FiFilter, FiDownload } from 'react-icons/fi';
 import { handleDownloadFile } from '../utils/download';
 import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import { DeauthModal, RescanModal } from './Modals';
+import AccessPoint from './AccessPoint';
 
-export default function AccessPoints({ scan }) {
+export default function AccessPoints({ scan, onRescanComplete }) {
   const api = useApi();
   const flash = useFlash();
   const scanId = scan.id;
 
-  // State
+  // UI state
   const [openMap, setOpenMap] = useState({});
   const [apSort, setApSort] = useState({ field: null, asc: true });
 
-  // Deauth state
+  // Deauth state + progress
   const [showDeauthModal, setShowDeauthModal] = useState(false);
-  const [selectedAp, setSelectedAp] = useState(null);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 30 });
+  const [selectedTarget, setSelectedTarget] = useState({ ap: null, client: null });
+  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 30, infinite: false });
   const [activeDeauths, setActiveDeauths] = useState({});
-  const [handshakeFiles, setHandshakeFiles] = useState({});
-  const [infinitePackets, setInfinitePackets] = useState(false);
+  const [deauthStartTime, setDeauthStartTime] = useState(null);
+  const [deauthProgress, setDeauthProgress] = useState(0);
+  const [deauthBssid, setDeauthBssid] = useState(null);
 
-  // Rescan state
+  // Rescan state + progress
   const [showRescanModal, setShowRescanModal] = useState(false);
-  const [rescanBssid, setRescanBssid] = useState(null);
   const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 30 });
-  const [activeRescans, setActiveRescans] = useState({});
-  const [rescanProgress, setRescanProgress] = useState(0);
+  const [rescanBssid, setRescanBssid] = useState(null);
   const [rescanStartTime, setRescanStartTime] = useState(null);
-  const [rescanDurationState, setRescanDurationState] = useState(0);
+  const [rescanProgress, setRescanProgress] = useState(0);
 
-  // Extract handshake filenames
+  // Handshake files
+  const [handshakeFiles, setHandshakeFiles] = useState({});
   useEffect(() => {
-    if (!scan) return;
     const hf = {};
     scan.access_points.forEach(ap => {
       if (ap.handshake_file) hf[`${ap.bssid}|AP`] = ap.handshake_file.split('/').pop();
@@ -59,236 +46,193 @@ export default function AccessPoints({ scan }) {
       });
     });
     setHandshakeFiles(hf);
-  }, [scan]);
+  }, [scan.access_points]);
 
-  // Rescan progress
-  useEffect(() => {
-    if (rescanStartTime == null) return;
-    const id = window.setInterval(() => {
-      const elapsed = (Date.now() - rescanStartTime) / 1000;
-      const pct = Math.min(100, (elapsed / rescanDurationState) * 100);
-      setRescanProgress(pct);
-      if (pct >= 100) clearInterval(id);
-    }, 500);
-    return () => clearInterval(id);
-  }, [rescanStartTime, rescanDurationState]);
-
-  // Sorting
+  // Sorting logic
   const handleSortSelect = field =>
-    setApSort(p => ({ field, asc: p.field === field ? !p.asc : true }));
-
+    setApSort(prev => ({ field, asc: prev.field === field ? !prev.asc : true }));
   const sortedAPs = useMemo(() => {
-    const list = [...(scan.access_points || [])];
+    const list = [...scan.access_points];
     const { field, asc } = apSort;
     if (!field) return list;
     return list.sort((a, b) => {
-      let av =
-        field === 'last_seen'
-          ? new Date(a.last_seen || 0).getTime()
-          : a[field] ?? '';
-      let bv =
-        field === 'last_seen'
-          ? new Date(b.last_seen || 0).getTime()
-          : b[field] ?? '';
-      if (av < bv) return asc ? -1 : 1;
-      if (av > bv) return asc ? 1 : -1;
-      return 0;
+      let av, bv;
+      if (field === 'last_seen') {
+        av = new Date(a.last_seen || 0).getTime();
+        bv = new Date(b.last_seen || 0).getTime();
+      } else if (field === 'clients') {
+        av = a.clients.length;
+        bv = b.clients.length;
+      } else {
+        av = a[field] ?? '';
+        bv = b[field] ?? '';
+      }
+      return av < bv ? (asc ? -1 : 1) : av > bv ? (asc ? 1 : -1) : 0;
     });
   }, [scan.access_points, apSort]);
 
   // Deauth handlers
-  const handleDeauthAp = bssid => {
-    setSelectedAp(bssid);
-    setSelectedClient(null);
-    setShowDeauthModal(true);
-  };
-  const handleDeauthClient = (bssid, client) => {
-    setSelectedAp(bssid);
-    setSelectedClient(client);
+  const openDeauth = (ap, client = null) => {
+    setSelectedTarget({ ap, client });
+    setDeauthBssid(ap);
     setShowDeauthModal(true);
   };
   const submitDeauth = async () => {
-    setShowDeauthModal(false);
-    flash('Deauth process started...', 'warning');
-    const key = `${selectedAp}|${selectedClient || 'AP'}`;
+    const { ap, client } = selectedTarget;
+    const key = `${ap}|${client || 'AP'}`;
     setActiveDeauths(prev => ({ ...prev, [key]: true }));
-    const apInfo = scan.access_points.find(a => a.bssid === selectedAp) || {};
-    const channel = apInfo.channel || 6;
-    let endpoint, payload;
-    if (selectedClient) {
-      endpoint = '/deauth/start_deauth_client';
-      payload = {
-        scan_id: scanId,
-        ap_mac: selectedAp,
-        client_mac: selectedClient,
-        channel,
-        packets: deauthOptions.packets,
-        duration: deauthOptions.duration,
-      };
-    } else {
-      endpoint = '/deauth/start';
-      payload = {
-        scan_id: scanId,
-        mac: selectedAp,
-        channel,
-        is_client: false,
-        packets: deauthOptions.packets,
-        duration: deauthOptions.duration,
-      };
-    }
-    const resp = await api.post(endpoint, payload);
-    setActiveDeauths(prev => { const nxt = { ...prev }; delete nxt[key]; return nxt; });
-    if (resp.ok) {
-      flash(resp.body.message || 'Deauth abgeschlossen.', 'success');
+    setDeauthStartTime(Date.now());
+    setDeauthProgress(0);
+    flash('Deauth startet...', 'warning');
+
+    const payload = client
+      ? { scan_id: scanId, ap_mac: ap, client_mac: client, channel: scan.access_points.find(a => a.bssid === ap)?.channel, packets: deauthOptions.packets, duration: deauthOptions.duration }
+      : { scan_id: scanId, mac: ap, is_client: false, channel: scan.access_points.find(a => a.bssid === ap)?.channel, packets: deauthOptions.packets, duration: deauthOptions.duration };
+    const path = client ? '/deauth/start_deauth_client' : '/deauth/start';
+
+    try {
+      const resp = await api.post(path, payload);
+      if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
+      flash('Deauth erfolgreich gestartet', 'success');
       if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
-    } else {
-      flash(resp.body?.error || 'Deauth fehlgeschlagen.', 'danger');
+    } catch (err) {
+      flash(err.message, 'danger');
+    } finally {
+      setActiveDeauths(prev => { const next = { ...prev }; delete next[key]; return next; });
+      setShowDeauthModal(false);
+      setDeauthStartTime(null);
+      setDeauthBssid(null);
     }
   };
-  const renderDeauthStatus = (bssid, client) => {
-    const key = `${bssid}|${client || 'AP'}`;
+  const renderDeauthStatus = (ap, client) => {
+    const key = `${ap}|${client || 'AP'}`;
     return activeDeauths[key]
-      ? <Spinner animation="border" size="sm" variant="danger" />
+      ? <Spinner animation="border" size="sm" variant="danger" className="me-1" />
       : null;
   };
-  const renderHandshakeLink = (bssid, client) => {
-    const key = `${bssid}|${client || 'AP'}`;
-    const filename = handshakeFiles[key];
-    if (!filename) return null;
+
+  // Rescan handlers
+  const openRescan = ap => { setRescanBssid(ap); setShowRescanModal(true); };
+
+  const submitRescan = async () => {
+    // 1) Modal schließen und Progress starten
+    setShowRescanModal(false);
+    setRescanStartTime(Date.now());
+    setRescanProgress(0);
+    flash('Rescan gestartet...', 'warning');
+
+    // 2) API-Call
+    try {
+      const resp = await api.post(`/scans/${scanId}/scan_ap`, {
+        bssid: rescanBssid,
+        duration: rescanOptions.duration
+      });
+      if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
+      flash('Rescan abgeschlossen', 'success');
+
+      // 3) Daten neu laden
+      onRescanComplete?.();
+    } catch (err) {
+      flash(err.message, 'danger');
+    } finally {
+      // Progress beenden
+      setRescanStartTime(null);
+    }
+  };
+
+  // Progress-Effekte
+  useEffect(() => {
+    if (deauthStartTime == null) return;
+    const iv = setInterval(() => {
+      const elapsed = (Date.now() - deauthStartTime) / 1000;
+      const pct = Math.min(100, deauthOptions.duration > 0 ? elapsed / deauthOptions.duration * 100 : 100);
+      setDeauthProgress(pct);
+      if (pct >= 100) clearInterval(iv);
+    }, 200);
+    return () => clearInterval(iv);
+  }, [deauthStartTime, deauthOptions.duration]);
+
+  useEffect(() => {
+    if (rescanStartTime == null) return;
+    const iv = setInterval(() => {
+      const elapsed = (Date.now() - rescanStartTime) / 1000;
+      const pct = Math.min(100, rescanOptions.duration > 0 ? elapsed / rescanOptions.duration * 100 : 100);
+      setRescanProgress(pct);
+      if (pct >= 100) clearInterval(iv);
+    }, 200);
+    return () => clearInterval(iv);
+  }, [rescanStartTime, rescanOptions.duration]);
+
+  // Handshake-Link
+  const renderHandshakeLink = (b, c) => {
+    const key = `${b}|${c || 'AP'}`;
+    const fn = handshakeFiles[key];
+    if (!fn) return null;
     return (
-      <Button
-        variant="success"
-        size="sm"
-        className="ms-2 d-inline-flex align-items-center"
-        onClick={e => {
-          e.stopPropagation();
-          handleDownloadFile(scanId, filename, api.base_url, flash);
-        }}
+      <Button variant="success" size="sm" className="ms-2"
+        onClick={() => handleDownloadFile(scanId, fn, api.base_url, flash)}
       >
         <FiDownload className="me-1" />Handshake
       </Button>
     );
   };
 
-  // Rescan handlers
-  const handleRescan = bssid => {
-    setRescanBssid(bssid);
-    setRescanOptions({ description: '', duration: 30 });
-    setRescanDurationState(30);
-    setRescanStartTime(Date.now());
-    setShowRescanModal(true);
-  };
-  const submitRescan = async () => {
-    setShowRescanModal(false);
-    flash('Rescan gestartet...', 'success');
-    setActiveRescans(prev => ({ ...prev, [rescanBssid]: true }));
-    setRescanDurationState(rescanOptions.duration);
-    setRescanStartTime(Date.now());
-    setRescanProgress(0);
-    const resp = await api.post(`/scans/${scanId}/scan_ap`, {
-      bssid: rescanBssid,
-      channel: scan.access_points.find(ap => ap.bssid === rescanBssid)?.channel,
-    });
-    setActiveRescans(prev => { const u = { ...prev }; delete u[rescanBssid]; return u; });
-    if (resp.ok) {
-      flash('Rescan abgeschlossen.', 'success');
-    } else {
-      flash(resp.body?.error || 'Rescan fehlgeschlagen.', 'danger');
-    }
-  };
-
-  const toggle = bssid => setOpenMap(m => ({ ...m, [bssid]: !m[bssid] }));
-
   return (
     <>
+      {/* Sortierleiste */}
       <div className="d-flex justify-content-between align-items-center mt-4">
         <h4>Access Points</h4>
         <Dropdown as={ButtonGroup}>
           <Button variant="outline-secondary" size="sm"><FiFilter /> Sortieren</Button>
           <Dropdown.Toggle split variant="outline-secondary" size="sm" />
           <Dropdown.Menu>
-            {['power', 'essid', 'vendor', 'last_seen'].map(f => (
+            {['power', 'essid', 'vendor', 'last_seen', 'clients'].map(f => (
               <Dropdown.Item key={f} onClick={() => handleSortSelect(f)}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+                {f === 'essid' ? 'SSID' : f === 'last_seen' ? 'Zuletzt gesehen' : f === 'clients' ? 'Clients' : f.charAt(0).toUpperCase() + f.slice(1)}
                 {apSort.field === f && (apSort.asc ? ' ↑' : ' ↓')}
               </Dropdown.Item>
             ))}
           </Dropdown.Menu>
         </Dropdown>
       </div>
-
       <hr />
 
-      {sortedAPs.map(ap => {
-        const hasCam = ap.clients.some(c => c.is_camera);
-        return (
-          <Card key={ap.bssid} className="mb-2">
-            <Card.Header onClick={() => toggle(ap.bssid)} style={{ cursor: 'pointer' }}>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  {hasCam && <FiAlertTriangle className="text-warning me-1" />}
-                  <strong>{ap.essid || '<Hidden>'}</strong>
-                </div>
-                <ButtonGroup className="d-flex gap-1">
-                  {renderDeauthStatus(ap.bssid)}
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={e => { e.stopPropagation(); handleDeauthAp(ap.bssid); }}
-                  >
-                    <FiWifiOff /> Deauth
-                  </Button>
-                  {renderHandshakeLink(ap.bssid)}
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    disabled={!!activeRescans[ap.bssid]}
-                    onClick={e => { e.stopPropagation(); handleRescan(ap.bssid); }}
-                  >
-                    <FiRefreshCw />
-                  </Button>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={e => { e.stopPropagation(); toggle(ap.bssid); }}
-                  >
-                    {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
-                  </Button>
-                </ButtonGroup>
-              </div>
-              {rescanBssid === ap.bssid && rescanStartTime !== null && (
-                <ProgressBar
-                  now={rescanProgress}
-                  animated
-                  striped
-                  style={{ height: '4px', marginTop: '0.5rem', borderRadius: '2px' }}
-                />
-              )}
-            </Card.Header>
-            <Collapse in={openMap[ap.bssid]}>
-              <Card.Body>
-                {/* Details hier */}
-              </Card.Body>
-            </Collapse>
-          </Card>
-        );
-      })}
+      {/* AccessPoints */}
+      {sortedAPs.map(ap => (
+        <AccessPoint
+          key={ap.bssid}
+          ap={ap}
+          handshakeFiles={handshakeFiles}
+          openMap={openMap}
+          toggleOpen={b => setOpenMap(m => ({ ...m, [b]: !m[b] }))}
+          onDeauthAp={openDeauth}
+          onDeauthClient={openDeauth}
+          onRescan={openRescan}
+          renderDeauthStatus={renderDeauthStatus}
+          renderHandshakeLink={renderHandshakeLink}
+          activeDeauths={activeDeauths}
+          deauthProgress={deauthProgress}
+          deauthBssid={deauthBssid}
+          rescanBssid={rescanBssid}
+          rescanStartTime={rescanStartTime}
+          rescanProgress={rescanProgress}
+        />
+      ))}
 
+      {/* Modals */}
       <DeauthModal
         show={showDeauthModal}
         onHide={() => setShowDeauthModal(false)}
+        options={deauthOptions}
+        onChangeOptions={setDeauthOptions}
         onSubmit={submitDeauth}
-        packets={deauthOptions.packets}
-        duration={deauthOptions.duration}
-        infinite={infinitePackets}
-        setInfinite={setInfinitePackets}
       />
       <RescanModal
         show={showRescanModal}
         onHide={() => setShowRescanModal(false)}
+        options={rescanOptions}
+        onChangeOptions={setRescanOptions}
         onSubmit={submitRescan}
-        duration={rescanOptions.duration}
-        description={rescanOptions.description}
       />
     </>
   );

@@ -19,8 +19,8 @@ export default function ScanHeader({ scan, onDownload }) {
         {/* Linke Seite: Scan-Titel + Zeit */}
         <div>
           <h5 className="mb-0">
-            Scan: <br />
-          </h5>
+            Scan am&nbsp;
+          
           {createdDate ? new Date(createdDate).toLocaleString('de-DE', {
             day: '2-digit',
             month: '2-digit',
@@ -28,6 +28,7 @@ export default function ScanHeader({ scan, onDownload }) {
             hour: '2-digit',
             minute: '2-digit'
           }) : '–'} (<TimeAgo isoDate={createdDate} />)
+          </h5>
         </div>
 
         {/* Rechte Seite: Download-Button */}

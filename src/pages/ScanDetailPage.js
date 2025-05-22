@@ -19,6 +19,13 @@ export default function ScanDetailPage() {
 
   const [scan, setScan] = useState(null);
 
+  // Hilfsfunktion, um Scan-Daten neu einzulesen
+  const reloadScan = async () => {
+    const resp = await api.get(`/scans/${scanId}`);
+    if (resp.ok) setScan(resp.body);
+    else flash(resp.body?.error || 'Scan nicht gefunden', 'danger');
+  };
+
   useEffect(() => {
     const load = async () => {
       const resp = await api.get(`/scans/${scanId}`);
@@ -39,7 +46,7 @@ export default function ScanDetailPage() {
         scan={scan}
         onDownload={() => handleDownload(scan, api.base_url, flash)}
       />
-      <AccessPoints scan={scan} />
+      <AccessPoints scan={scan} onRescanComplete={reloadScan}/>
       <UnlinkedClients scan={scan} />
     </Body>
   );
