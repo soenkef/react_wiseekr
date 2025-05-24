@@ -8,7 +8,9 @@ export default function Clients({
   renderDeauthStatus,
   renderHandshakeLink,
   activeDeauths,
-  deauthInProgress
+  deauthInProgress,
+  infinite,
+  stopDeauth
 }) {
   return (
     <div>
@@ -26,6 +28,8 @@ export default function Clients({
             renderHandshakeLink={renderHandshakeLink}
             activeDeauths={activeDeauths}
             deauthInProgress={deauthInProgress}
+            infinite={infinite}
+            stopDeauth={stopDeauth}
           />
         ))
       )}

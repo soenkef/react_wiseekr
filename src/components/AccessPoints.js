@@ -67,7 +67,9 @@ export default function AccessPoints({ scan, onRescanComplete }) {
         av = a[field] ?? '';
         bv = b[field] ?? '';
       }
-      return av < bv ? (asc ? -1 : 1) : av > bv ? (asc ? 1 : -1) : 0;
+      if (av < bv) return asc ? -1 : 1;
+      if (av > bv) return asc ? 1 : -1;
+      return 0;
     });
   }, [scan.access_points, apSort]);
 
@@ -77,6 +79,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     setDeauthBssid(ap);
     setShowDeauthModal(true);
   };
+
   const submitDeauth = async () => {
     const { ap, client } = selectedTarget;
     const key = `${ap}|${client || 'AP'}`;
@@ -85,25 +88,50 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     setDeauthProgress(0);
     flash('Deauth startet...', 'warning');
 
+    // build payload
+    const common = {
+      scan_id: scanId,
+      packets: deauthOptions.packets,
+      ...(deauthOptions.infinite ? {} : { duration: deauthOptions.duration }),
+      infinite: deauthOptions.infinite,
+      channel: scan.access_points.find(a => a.bssid === ap)?.channel || 6,
+    };
+
+    // payload und endpoint nur einmal deklarieren
     const payload = client
-      ? { scan_id: scanId, ap_mac: ap, client_mac: client, channel: scan.access_points.find(a => a.bssid === ap)?.channel, packets: deauthOptions.packets, duration: deauthOptions.duration }
-      : { scan_id: scanId, mac: ap, is_client: false, channel: scan.access_points.find(a => a.bssid === ap)?.channel, packets: deauthOptions.packets, duration: deauthOptions.duration };
-    const path = client ? '/deauth/start_deauth_client' : '/deauth/start';
+      ? {
+        ...common,
+        ap_mac: ap,
+        client_mac: client,
+        is_client: true
+      }
+      : {
+        ...common,
+        mac: ap,
+        is_client: false
+      };
+    const endpoint = client ? '/deauth/start_deauth_client' : '/deauth/start';
+
+    console.log('🔑 Deauth-Payload', payload);
 
     try {
-      const resp = await api.post(path, payload);
+      const resp = await api.post(endpoint, payload);
       if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
       flash('Deauth erfolgreich gestartet', 'success');
+      // wenn’s eine Datei gibt → im State ablegen
+      const key = `${ap}|${client || 'AP'}`;
       if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
     } catch (err) {
       flash(err.message, 'danger');
     } finally {
+      const key = `${ap}|${client || 'AP'}`;
       setActiveDeauths(prev => { const next = { ...prev }; delete next[key]; return next; });
       setShowDeauthModal(false);
       setDeauthStartTime(null);
       setDeauthBssid(null);
     }
   };
+
   const renderDeauthStatus = (ap, client) => {
     const key = `${ap}|${client || 'AP'}`;
     return activeDeauths[key]
@@ -111,41 +139,60 @@ export default function AccessPoints({ scan, onRescanComplete }) {
       : null;
   };
 
+  // stop deauth
+  const stopDeauth = async () => {
+    const { ap, client } = selectedTarget;
+    // wenn wir einen Client deauthen => stoppe client, sonst AP
+    const macToStop = client || ap;
+    flash('Stopping deauth…', 'warning');
+    const resp = await api.post('/deauth/stop', {
+      scan_id: scanId,
+      mac: macToStop
+    });
+    if (resp.ok) {
+      flash('Deauth gestoppt', 'success');
+      const key = `${ap}|${client || 'AP'}`;
+      setActiveDeauths(prev => { const next = { ...prev }; delete next[key]; return next; });
+
+      setDeauthProgress(0);
+      setDeauthStartTime(null);
+      setDeauthBssid(null);
+      // reset infinite-Mode, damit wieder der normale Deauth-Button erscheint
+      setDeauthOptions(prev => ({ ...prev, infinite: false }));
+    } else {
+      flash(resp.body?.error || 'Stop failed', 'danger');
+    }
+  };
+
   // Rescan handlers
   const openRescan = ap => { setRescanBssid(ap); setShowRescanModal(true); };
-
   const submitRescan = async () => {
-    // 1) Modal schließen und Progress starten
     setShowRescanModal(false);
     setRescanStartTime(Date.now());
     setRescanProgress(0);
     flash('Rescan gestartet...', 'warning');
-
-    // 2) API-Call
     try {
-      const resp = await api.post(`/scans/${scanId}/scan_ap`, {
-        bssid: rescanBssid,
-        duration: rescanOptions.duration
-      });
+      const resp = await api.post(`/scans/${scanId}/scan_ap`, { bssid: rescanBssid, duration: rescanOptions.duration });
       if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
       flash('Rescan abgeschlossen', 'success');
-
-      // 3) Daten neu laden
       onRescanComplete?.();
     } catch (err) {
       flash(err.message, 'danger');
     } finally {
-      // Progress beenden
       setRescanStartTime(null);
     }
   };
 
-  // Progress-Effekte
+  // Progress effects
   useEffect(() => {
     if (deauthStartTime == null) return;
     const iv = setInterval(() => {
       const elapsed = (Date.now() - deauthStartTime) / 1000;
-      const pct = Math.min(100, deauthOptions.duration > 0 ? elapsed / deauthOptions.duration * 100 : 100);
+      const pct = Math.min(100,
+        deauthOptions.duration > 0
+          ? elapsed / deauthOptions.duration * 100
+          : 100
+      );
       setDeauthProgress(pct);
       if (pct >= 100) clearInterval(iv);
     }, 200);
@@ -156,7 +203,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     if (rescanStartTime == null) return;
     const iv = setInterval(() => {
       const elapsed = (Date.now() - rescanStartTime) / 1000;
-      const pct = Math.min(100, rescanOptions.duration > 0 ? elapsed / rescanOptions.duration * 100 : 100);
+      const pct = Math.min(100, elapsed / rescanOptions.duration * 100);
       setRescanProgress(pct);
       if (pct >= 100) clearInterval(iv);
     }, 200);
@@ -169,7 +216,10 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     const fn = handshakeFiles[key];
     if (!fn) return null;
     return (
-      <Button variant="success" size="sm" className="ms-2"
+      <Button
+        variant="success"
+        size="sm"
+        className="ms-2"
         onClick={() => handleDownloadFile(scanId, fn, api.base_url, flash)}
       >
         <FiDownload className="me-1" />Handshake
@@ -216,6 +266,8 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           rescanBssid={rescanBssid}
           rescanStartTime={rescanStartTime}
           rescanProgress={rescanProgress}
+          infinite={deauthOptions.infinite}
+          stopDeauth={stopDeauth}
         />
       ))}
 

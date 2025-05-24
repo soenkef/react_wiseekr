@@ -10,7 +10,8 @@ import {
   FiRefreshCw,
   FiChevronDown,
   FiChevronUp,
-  FiDownload
+  FiDownload,
+  FiStopCircle
 } from 'react-icons/fi';
 import Clients from './Clients';
 
@@ -30,20 +31,18 @@ export default function AccessPoint({
   rescanBssid,
   rescanProgress,
   deauthBssid,
-
+  infinite,
+  stopDeauth
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
-  const hsKey = `${ap.bssid}|AP`;
+  const clientCount = ap.clients.length;
   const hasHandshake = Object.keys(handshakeFiles)
     .some(key => key.startsWith(`${ap.bssid}|`));
-  const clientCount = ap.clients.length;
-
 
   return (
     <Card className="mb-4 shadow-sm">
       <Card.Header style={{ cursor: 'pointer' }} onClick={() => toggleOpen(ap.bssid)}>
         <div className="d-flex justify-content-between align-items-center">
-          {console.log("Handshake file:", ap.handshake_file)}
           <div>
             {hasCam && <FiAlertTriangle className="text-warning me-2" />}
             {hasHandshake && (
@@ -57,61 +56,96 @@ export default function AccessPoint({
             <span className="text-muted">({clientCount} Clients)</span>
           </div>
           <ButtonGroup size="sm">
-            {/* Deauth-Spinner */}
+            {/* Spinner bei laufendem Deauth */}
             {renderDeauthStatus(ap.bssid, null)}
-            {/* Deauth-Button */}
+
+            {/* STOP BUTTON – nur bei infinite Deauth auf diesem AP */}
+            {infinite && deauthBssid === ap.bssid && (
+              <Button
+                variant="warning"
+                size="sm"
+                className="me-1"
+                onClick={e => { e.stopPropagation(); stopDeauth(ap.bssid); }}
+              >
+                Stop
+              </Button>
+            )}
+
             <Button
-              variant="danger"
-              disabled={deauthProgress > 0 && deauthProgress < 100}
-              onClick={e => { e.stopPropagation(); onDeauthAp(ap.bssid); }}
-            ><FiWifiOff /></Button>
-            {/* Handshake */}
+              variant={infinite ? 'warning' : 'danger'}
+              size="sm"
+              disabled={ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100}
+              onClick={e => {
+                e.stopPropagation();
+                if (infinite) {
+                  stopDeauth(ap.bssid);
+                } else {
+                  onDeauthAp(ap.bssid);
+                }
+              }}
+              className="me-1"
+            >
+              {infinite ? <FiStopCircle /> : <FiWifiOff />}
+            </Button>
+
+            {/* Download-Handshake */}
             {renderHandshakeLink(ap.bssid, null)}
-            {/* Rescan */}
+
+            {/* Rescan-Button */}
             <Button
               variant="outline-secondary"
+              size="sm"
               disabled={rescanBssid === ap.bssid && rescanProgress < 100}
-              onClick={e => { e.stopPropagation(); onRescan(ap.bssid); }}
-            ><FiRefreshCw /></Button>
-            {/* Collapse toggle */}
+              onClick={e => {
+                e.stopPropagation();
+                onRescan(ap.bssid);
+              }}
+              className="me-1"
+            >
+              <FiRefreshCw />
+            </Button>
+
+            {/* Toggle-Collapse */}
             <Button
               variant="outline-primary"
-              onClick={e => { e.stopPropagation(); toggleOpen(ap.bssid); }}
+              size="sm"
+              onClick={e => {
+                e.stopPropagation();
+                toggleOpen(ap.bssid);
+              }}
             >
               {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
             </Button>
           </ButtonGroup>
         </div>
 
-        {/* Deauth Progressbar */}
+        {/* Deauth-Progressbar */}
         {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && (
           <ProgressBar
             now={deauthProgress}
             animated
             striped
-            variant="danger"
+            variant={infinite ? 'warning' : 'danger'}
             className="mt-2"
             style={{ height: '4px', borderRadius: '2px' }}
           />
         )}
 
-        {/* Rescan Progressbar */}
-        {rescanStartTime !== null
-          && rescanBssid === ap.bssid
-          && rescanProgress < 100 && (
-            <ProgressBar
-              now={rescanProgress}
-              animated
-              striped
-              className="mt-2"
-              style={{ height: '4px', borderRadius: '2px' }}
-            />
-          )}
+        {/* Rescan-Progressbar */}
+        {rescanStartTime !== null && rescanBssid === ap.bssid && rescanProgress < 100 && (
+          <ProgressBar
+            now={rescanProgress}
+            animated
+            striped
+            className="mt-2"
+            style={{ height: '4px', borderRadius: '2px' }}
+          />
+        )}
       </Card.Header>
 
       <Collapse in={openMap[ap.bssid]}>
         <Card.Body className="bg-light">
-          {/* AP Details */}
+          {/* AP-Details */}
           <div className="row g-2 mb-3">
             {[
               ['BSSID', ap.bssid],
@@ -135,6 +169,8 @@ export default function AccessPoint({
             renderHandshakeLink={renderHandshakeLink}
             activeDeauths={activeDeauths}
             deauthInProgress={deauthProgress > 0 && deauthProgress < 100}
+            infinite={infinite}
+            stopDeauth={stopDeauth}
           />
         </Card.Body>
       </Collapse>

@@ -11,7 +11,10 @@ export default function Client({
   renderDeauthStatus,
   renderHandshakeLink,
   activeDeauths,
-  deauthInProgress
+  deauthInProgress,
+  infinite,
+  deauthBssid,
+  stopDeauth
 }) {
   const key = `${apBssid}|${client.mac}`;
   const isCamera = client.is_camera;
@@ -26,16 +29,30 @@ export default function Client({
           </div>
           <div className="d-flex align-items-center">
             {renderDeauthStatus(apBssid, client.mac)}
-            <Button
-              variant="outline-danger"
-              size="sm"
-              disabled={deauthInProgress || !!activeDeauths[key]}
-              onClick={() => handleDeauthClient(apBssid, client.mac)}
-              className="me-2"
-            >
-              <FiWifiOff className="me-1" />
-              Deauth
-            </Button>
+            { /* unendliche Client-Deauth stoppen */}
+            {infinite && deauthInProgress && activeDeauths[key] && (
+              <Button
+                variant="warning"
+                size="sm"
+                onClick={() => stopDeauth()}
+                className="me-2"
+              >
+                Stop
+              </Button>
+            )}
+            { /* ansonsten normal deauthen */}
+            {!infinite && (
+              <Button
+                variant="outline-danger"
+                size="sm"
+                disabled={deauthInProgress || !!activeDeauths[key]}
+                onClick={() => handleDeauthClient(apBssid, client.mac)}
+                className="me-2"
+              >
+                <FiWifiOff className="me-1" />
+                Deauth
+              </Button>
+            )}
             {renderHandshakeLink(apBssid, client.mac)}
           </div>
         </div>
