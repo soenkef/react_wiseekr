@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Table from 'react-bootstrap/Table';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
@@ -41,6 +41,9 @@ export default function ScanOverviewPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingScan, setEditingScan] = useState(null);
   const [editValues, setEditValues] = useState({ description: '', location: '' });
+
+  // --- NEU: Sort-State ---
+  const [sortConfig, setSortConfig] = useState({ field: 'created_at', asc: false });
 
 
   const loadScans = useCallback(async () => {
@@ -146,7 +149,7 @@ export default function ScanOverviewPage() {
     }
   };
 
-    // Öffnet den Edit-Modal und füllt die Felder
+  // Öffnet den Edit-Modal und füllt die Felder
   const openEditModal = scan => {
     setEditingScan(scan);
     setEditValues({ description: scan.description || '', location: scan.location || '' });
@@ -168,9 +171,45 @@ export default function ScanOverviewPage() {
     }
   };
 
-  const filteredScans = scans.filter(scan =>
-    Object.values(scan).some(val => val?.toString().toLowerCase().includes(search.toLowerCase()))
+  // --- Filter + Sort ---
+  const filtered = scans.filter(scan =>
+    Object.values(scan).some(v => v?.toString().toLowerCase().includes(search.toLowerCase()))
   );
+  const sortedScans = useMemo(() => {
+    const list = [...filtered];
+    const { field, asc } = sortConfig;
+    list.sort((a, b) => {
+      let va = a[field], vb = b[field];
+      // Datum parsen
+      if (field === 'created_at') {
+        va = new Date(a.created_at).getTime();
+        vb = new Date(b.created_at).getTime();
+      }
+      // Strings case-insensitive
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [filtered, sortConfig]);
+
+
+  const requestSort = field => {
+    setSortConfig(c =>
+      c.field === field
+        ? { field, asc: !c.asc }
+        : { field, asc: true }
+    );
+  };
+
+  const headerArrow = field => {
+    if (sortConfig.field !== field) return '';
+    return sortConfig.asc ? ' ↑' : ' ↓';
+  };
+
+
 
   return (
     <Body>
@@ -218,39 +257,48 @@ export default function ScanOverviewPage() {
       <Table striped hover responsive className="align-middle">
         <thead>
           <tr>
-            <th>Erstellt am</th>
-            <th>Beschreibung</th>
-            <th>Ort</th>
+            <th onClick={() => requestSort('created_at')} style={{ cursor: 'pointer' }}>
+              Erstellt am{headerArrow('created_at')}
+            </th>
+            <th onClick={() => requestSort('description')} style={{ cursor: 'pointer' }}>
+              Beschreibung{headerArrow('description')}
+            </th>
+            <th onClick={() => requestSort('location')} style={{ cursor: 'pointer' }}>
+              Ort{headerArrow('location')}
+            </th>
+            <th className="text-end" onClick={() => requestSort('access_points_count')} style={{ cursor: 'pointer' }}>
+              #AP{headerArrow('access_points_count')}
+            </th>
             <th className="text-end">Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          {filteredScans.map(s => (
-            <tr key={s.id} onClick={e => !e.target.closest('button') && handleNavigate(s.id)} style={{ cursor: 'pointer' }}>
+          {sortedScans.map(s => (
+            <tr key={s.id}
+              onClick={e => !e.target.closest('button') && handleNavigate(s.id)}
+              style={{ cursor: 'pointer' }}>
               <td>
-                {s.created_at ? new Date(s.created_at).toLocaleString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) : '–'}
-                <br /><small className="text-muted">(<TimeAgo isoDate={s.created_at} />)</small>
-              </td>
-              <td>
-                {s.description
-                  ? s.description
-                  : <em>keine Beschreibung</em>
-                }
+                {s.created_at
+                  ? new Date(s.created_at).toLocaleString('de-DE', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })
+                  : '–'}
+                <br />
                 <small className="text-muted">
-                  <br />({s.access_points_count} Access Points gefunden)
+                  (<TimeAgo isoDate={s.created_at} />)
                 </small>
               </td>
-              <td>{s.location
-                ? s.location
-                : <em>kein Ort</em>
-              }</td>
               <td>
+                {s.description || <em>keine Beschreibung</em>}
+                <br />
+                <small className="text-muted">
+                  ({s.access_points_count} APs)
+                </small>
+              </td>
+              <td>{s.location || <em>kein Ort</em>}</td>
+              <td className="text-end">{s.access_points_count}</td>
+              <td className="text-end">
                 <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 flex-wrap justify-content-end">
                   {s.filename ? (
                     <Button
