@@ -12,7 +12,7 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
-import { FiDownload, FiTrash } from 'react-icons/fi';
+import { FiDownload, FiTrash, FiEdit } from 'react-icons/fi';
 import { handleDownloadAll } from '../utils/download';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
@@ -36,6 +36,12 @@ export default function ScanOverviewPage() {
   const [progress, setProgress] = useState(0);
   const [scanStart, setScanStart] = useState(null);
   const [scanDuration, setScanDuration] = useState(0);
+
+  // fürs Editieren von Scans
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingScan, setEditingScan] = useState(null);
+  const [editValues, setEditValues] = useState({ description: '', location: '' });
+
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
@@ -137,6 +143,28 @@ export default function ScanOverviewPage() {
       setProgress(100);
       setNewScan({ description: '', location: '', duration });
       setInfinite(false);
+    }
+  };
+
+    // Öffnet den Edit-Modal und füllt die Felder
+  const openEditModal = scan => {
+    setEditingScan(scan);
+    setEditValues({ description: scan.description || '', location: scan.location || '' });
+    setShowEditModal(true);
+  };
+
+  // Sendet die Änderungen ans Backend
+  const submitEdit = async () => {
+    const resp = await api.put(`/scans/${editingScan.id}`, editValues);
+    if (resp.ok) {
+      flash('Scan gespeichert', 'success');
+      // in-state updaten, damit Tabelle sofort reflektiert
+      setScans(scans.map(s =>
+        s.id === editingScan.id ? { ...s, ...resp.body } : s
+      ));
+      setShowEditModal(false);
+    } else {
+      flash(resp.body?.error || 'Speichern fehlgeschlagen', 'danger');
     }
   };
 
@@ -244,6 +272,14 @@ export default function ScanOverviewPage() {
                     </Button>
                   )}
                   <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={e => { e.stopPropagation(); openEditModal(s); }}
+                    title="Beschreibung/Ort bearbeiten"
+                  >
+                    <FiEdit />
+                  </Button>
+                  <Button
                     variant="outline-danger"
                     size="sm"
                     className="ap-action-btn"
@@ -336,6 +372,41 @@ export default function ScanOverviewPage() {
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowNewScanModal(false)}>Abbrechen</Button>
           <Button variant="success" onClick={handleNewScanSubmit}>Scan starten</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Edit-Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Scan bearbeiten</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Beschreibung</Form.Label>
+              <Form.Control
+                type="text"
+                value={editValues.description}
+                onChange={e => setEditValues(v => ({ ...v, description: e.target.value }))}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Ort</Form.Label>
+              <Form.Control
+                type="text"
+                value={editValues.location}
+                onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+            Abbrechen
+          </Button>
+          <Button variant="primary" onClick={submitEdit}>
+            Speichern
+          </Button>
         </Modal.Footer>
       </Modal>
 
