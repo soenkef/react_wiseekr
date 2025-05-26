@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
+import DropdownButton from 'react-bootstrap/DropdownButton';
 import Spinner from 'react-bootstrap/Spinner';
 import { FiFilter, FiDownload } from 'react-icons/fi';
 import { handleDownloadFile } from '../utils/download';
@@ -227,6 +228,56 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     );
   };
 
+  // Hilfsfunktion, um die Anzahl der Client-Handshakes zu zählen
+  const renderHandshakeDropdown = (ap) => {
+    const items = [];
+
+    const keyAp = `${ap.bssid}|AP`;
+    if (handshakeFiles[keyAp]) {
+      items.push(
+        <Dropdown.Item
+          key={keyAp}
+          onClick={() =>
+            handleDownloadFile(scanId, handshakeFiles[keyAp], api.base_url, flash)
+          }
+        >
+          {ap.bssid}
+        </Dropdown.Item>
+      );
+    }
+
+    ap.clients.forEach(c => {
+      const key = `${ap.bssid}|${c.mac}`;
+      if (handshakeFiles[key]) {
+        items.push(
+          <Dropdown.Item
+            key={key}
+            onClick={() =>
+              handleDownloadFile(scanId, handshakeFiles[key], api.base_url, flash)
+            }
+          >
+            {c.mac}
+          </Dropdown.Item>
+        );
+      }
+    });
+
+    if (!items.length) return null;
+
+    return (
+      <DropdownButton
+        variant="success"
+        size="sm"
+        title={<><FiDownload className="me-1" />Handshake</>}
+        align="end"
+        className="me-1"
+      >
+        {items}
+      </DropdownButton>
+    );
+  };
+
+
   return (
     <>
       {/* Sortierleiste */}
@@ -260,6 +311,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           onRescan={openRescan}
           renderDeauthStatus={renderDeauthStatus}
           renderHandshakeLink={renderHandshakeLink}
+          renderHandshakeDropdown={renderHandshakeDropdown}
           activeDeauths={activeDeauths}
           deauthProgress={deauthProgress}
           deauthBssid={deauthBssid}

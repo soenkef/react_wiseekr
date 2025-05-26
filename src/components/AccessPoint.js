@@ -25,6 +25,7 @@ export default function AccessPoint({
   onRescan,
   renderDeauthStatus,
   renderHandshakeLink,
+  renderHandshakeDropdown,
   activeDeauths,
   deauthProgress,
   rescanStartTime,
@@ -88,8 +89,8 @@ export default function AccessPoint({
               {infinite ? <FiStopCircle /> : <FiWifiOff />}
             </Button>
 
-            {/* Download-Handshake */}
-            {renderHandshakeLink(ap.bssid, null)}
+            {/* Alle Handshake-Buttons (AP + Clients) */}
+            {renderHandshakeDropdown(ap)}
 
             {/* Rescan-Button */}
             <Button
