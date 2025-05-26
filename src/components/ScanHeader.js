@@ -8,9 +8,7 @@ import TimeAgo from '../components/TimeAgo'
 import { formatFileSize } from '../utils/format'
 
 export default function ScanHeader({ scan, onDownload }) {
-  const date = scan.created_at
-    ? new Date(scan.created_at).toLocaleString('de-DE')
-    : '–'
+  const createdDate = scan.created_at ? new Date(scan.created_at) : null;
 
   // Anzahl der gefundenen Access Points
   const apCount = scan.access_points ? scan.access_points.length : 0;
@@ -21,15 +19,16 @@ export default function ScanHeader({ scan, onDownload }) {
         {/* Linke Seite: Scan-Titel + Zeit */}
         <div>
           <h5 className="mb-0">
-            Scan: <br />
-          </h5>
-          {date ? new Date(date).toLocaleString('de-DE', {
+            Scan am&nbsp;
+          
+          {createdDate ? new Date(createdDate).toLocaleString('de-DE', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
-          }) : '–'} (<TimeAgo isoDate={date} />)
+          }) : '–'} (<TimeAgo isoDate={createdDate} />)
+          </h5>
         </div>
 
         {/* Rechte Seite: Download-Button */}
@@ -48,10 +47,16 @@ export default function ScanHeader({ scan, onDownload }) {
           <Col md={6}>
             <dl className="row mb-0">
               <dt className="col-sm-4">Beschreibung:</dt>
-              <dd className="col-sm-8">{scan.description || '–'}</dd>
+              <dd className="col-sm-8">{scan.description
+                  ? scan.description
+                  : <em>keine Beschreibung</em>
+                }</dd>
 
               <dt className="col-sm-4">Ort:</dt>
-              <dd className="col-sm-8">{scan.location || '–'}</dd>
+              <dd className="col-sm-8">{scan.location
+                ? scan.location
+                : <em>kein Ort</em>
+              }</dd>
             </dl>
           </Col>
           <Col md={6}>

@@ -1,0 +1,79 @@
+import React from 'react';
+import Card from 'react-bootstrap/Card';
+import ListGroup from 'react-bootstrap/ListGroup';
+import Button from 'react-bootstrap/Button';
+import { FiAlertTriangle, FiWifiOff } from 'react-icons/fi';
+
+export default function Client({
+  client,
+  apBssid,
+  handleDeauthClient,
+  renderDeauthStatus,
+  renderHandshakeLink,
+  activeDeauths,
+  deauthInProgress,
+  infinite,
+  deauthBssid,
+  stopDeauth
+}) {
+  const key = `${apBssid}|${client.mac}`;
+  const isCamera = client.is_camera;
+
+  return (
+    <Card className="mb-3 shadow-sm">
+      <Card.Body>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="d-flex align-items-center">
+            {isCamera && <FiAlertTriangle className="text-warning me-2" />}
+            <span className="text-monospace fw-bold">{client.mac}</span>
+          </div>
+          <div className="d-flex align-items-center">
+            {renderDeauthStatus(apBssid, client.mac)}
+            { /* unendliche Client-Deauth stoppen */}
+            {infinite && deauthInProgress && activeDeauths[key] && (
+              <Button
+                variant="warning"
+                size="sm"
+                onClick={() => stopDeauth()}
+                className="me-2"
+              >
+                Stop
+              </Button>
+            )}
+            { /* ansonsten normal deauthen */}
+            {!infinite && (
+              <Button
+                variant="outline-danger"
+                size="sm"
+                disabled={deauthInProgress || !!activeDeauths[key]}
+                onClick={() => handleDeauthClient(apBssid, client.mac)}
+                className="me-2"
+              >
+                <FiWifiOff className="me-1" />
+                Deauth
+              </Button>
+            )}
+            {renderHandshakeLink(apBssid, client.mac)}
+          </div>
+        </div>
+        <ListGroup variant="flush">
+          <ListGroup.Item>
+            <strong>Vendor:</strong> {client.vendor || '–'}
+          </ListGroup.Item>
+          <ListGroup.Item>
+            <strong>Power:</strong> {client.power}
+          </ListGroup.Item>
+          <ListGroup.Item>
+            <strong>First Seen:</strong> {new Date(client.first_seen).toLocaleString(undefined, { timeZone: 'UTC' })}
+          </ListGroup.Item>
+          <ListGroup.Item>
+            <strong>Last Seen:</strong> {new Date(client.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })}
+          </ListGroup.Item>
+          <ListGroup.Item>
+            <strong>Probed ESSIDs:</strong> {client.probed_essids || '–'}
+          </ListGroup.Item>
+        </ListGroup>
+      </Card.Body>
+    </Card>
+  );
+}

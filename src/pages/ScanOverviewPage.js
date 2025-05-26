@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Table from 'react-bootstrap/Table';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
@@ -12,7 +12,7 @@ import ProgressBar from 'react-bootstrap/ProgressBar';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
-import { FiDownload, FiTrash } from 'react-icons/fi';
+import { FiDownload, FiTrash, FiEdit } from 'react-icons/fi';
 import { handleDownloadAll } from '../utils/download';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
@@ -36,6 +36,15 @@ export default function ScanOverviewPage() {
   const [progress, setProgress] = useState(0);
   const [scanStart, setScanStart] = useState(null);
   const [scanDuration, setScanDuration] = useState(0);
+
+  // fürs Editieren von Scans
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingScan, setEditingScan] = useState(null);
+  const [editValues, setEditValues] = useState({ description: '', location: '' });
+
+  // --- NEU: Sort-State ---
+  const [sortConfig, setSortConfig] = useState({ field: 'created_at', asc: false });
+
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
@@ -140,29 +149,100 @@ export default function ScanOverviewPage() {
     }
   };
 
-  const filteredScans = scans.filter(scan =>
-    Object.values(scan).some(val => val?.toString().toLowerCase().includes(search.toLowerCase()))
+  // Öffnet den Edit-Modal und füllt die Felder
+  const openEditModal = scan => {
+    setEditingScan(scan);
+    setEditValues({ description: scan.description || '', location: scan.location || '' });
+    setShowEditModal(true);
+  };
+
+  // Sendet die Änderungen ans Backend
+  const submitEdit = async () => {
+    const resp = await api.put(`/scans/${editingScan.id}`, editValues);
+    if (resp.ok) {
+      flash('Scan gespeichert', 'success');
+      // in-state updaten, damit Tabelle sofort reflektiert
+      setScans(scans.map(s =>
+        s.id === editingScan.id ? { ...s, ...resp.body } : s
+      ));
+      setShowEditModal(false);
+    } else {
+      flash(resp.body?.error || 'Speichern fehlgeschlagen', 'danger');
+    }
+  };
+
+  // --- Filter + Sort ---
+  const filtered = scans.filter(scan =>
+    Object.values(scan).some(v => v?.toString().toLowerCase().includes(search.toLowerCase()))
   );
+  const sortedScans = useMemo(() => {
+    const list = [...filtered];
+    const { field, asc } = sortConfig;
+    list.sort((a, b) => {
+      let va = a[field], vb = b[field];
+      // Datum parsen
+      if (field === 'created_at') {
+        va = new Date(a.created_at).getTime();
+        vb = new Date(b.created_at).getTime();
+      }
+      // Strings case-insensitive
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [filtered, sortConfig]);
+
+
+  const requestSort = field => {
+    setSortConfig(c =>
+      c.field === field
+        ? { field, asc: !c.asc }
+        : { field, asc: true }
+    );
+  };
+
+  const headerArrow = field => {
+    if (sortConfig.field !== field) return '';
+    return sortConfig.asc ? ' ↑' : ' ↓';
+  };
+
+
 
   return (
     <Body>
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-        <h2 className="me-3">Alle Scans</h2>
-        <div className="d-flex flex-wrap align-items-center gap-2">
-          {scanStart !== null && (
-            <div className="text-center me-2" style={{ minWidth: 160 }}>
-              <small>Scan läuft</small>
-              <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
-            </div>
-          )}
-          {user?.id === 1 && (
-            <Button variant="danger" onClick={() => setShowClearModal(true)} disabled={importing}>
-              Alle Daten löschen
+      <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+        <h2 className="me-3 mb-2 mb-sm-0">Alle Scans</h2>
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2 w-100 w-sm-auto">
+          {/* Buttons immer zuerst */}
+          <div className="d-flex gap-2">
+            {user?.id === 1 && (
+              <Button variant="danger" onClick={() => setShowClearModal(true)} disabled={importing}>
+                Alle Daten löschen
+              </Button>
+            )}
+            <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
+              Scan starten
             </Button>
+          </div>
+
+          {/* Progressbar: auf XS immer volle Breite unter den Buttons, ab SM ganz normal links daneben */}
+          {scanStart !== null && (
+            <>
+              {/* mobile-only */}
+              <div className="w-100 d-block d-sm-none mt-2">
+                <small>Scan läuft</small>
+                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
+              </div>
+              {/* desktop-only */}
+              <div className="d-none d-sm-block text-center ms-2" style={{ minWidth: 160 }}>
+                <small>Scan läuft</small>
+                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
+              </div>
+            </>
           )}
-          <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
-            Scan starten
-          </Button>
         </div>
       </div>
 
@@ -177,41 +257,54 @@ export default function ScanOverviewPage() {
       <Table striped hover responsive className="align-middle">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Erstellt am</th>
-            <th>Beschreibung</th>
-            <th>Ort</th>
+            <th onClick={() => requestSort('created_at')} style={{ cursor: 'pointer' }}>
+              Erstellt am{headerArrow('created_at')}
+            </th>
+            <th onClick={() => requestSort('description')} style={{ cursor: 'pointer' }}>
+              Beschreibung{headerArrow('description')}
+            </th>
+            <th onClick={() => requestSort('location')} style={{ cursor: 'pointer' }}>
+              Ort{headerArrow('location')}
+            </th>
+            <th className="text-end" onClick={() => requestSort('access_points_count')} style={{ cursor: 'pointer' }}>
+              #AP{headerArrow('access_points_count')}
+            </th>
             <th className="text-end">Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          {filteredScans.map(s => (
-            <tr key={s.id} onClick={e => !e.target.closest('button') && handleNavigate(s.id)} style={{ cursor: 'pointer' }}>
-              <td>{s.id}</td>
+          {sortedScans.map(s => (
+            <tr key={s.id}
+              onClick={e => !e.target.closest('button') && handleNavigate(s.id)}
+              style={{ cursor: 'pointer' }}>
               <td>
-                {s.created_at ? new Date(s.created_at).toLocaleString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) : '–'} (<TimeAgo isoDate={s.created_at} />)
-              </td>
-              <td>
-                {s.description}
-                {' '}
+                {s.created_at
+                  ? new Date(s.created_at).toLocaleString('de-DE', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })
+                  : '–'}
+                <br />
                 <small className="text-muted">
-                  <br />({s.access_points_count} Access Points gefunden)
+                  (<TimeAgo isoDate={s.created_at} />)
                 </small>
               </td>
-              <td>{s.location}</td>
               <td>
-                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 justify-content-end">
+                {s.description || <em>keine Beschreibung</em>}
+                <br />
+                <small className="text-muted">
+                  ({s.access_points_count} APs)
+                </small>
+              </td>
+              <td>{s.location || <em>kein Ort</em>}</td>
+              <td className="text-end">{s.access_points_count}</td>
+              <td className="text-end">
+                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 flex-wrap justify-content-end">
                   {s.filename ? (
                     <Button
                       variant="outline-secondary"
                       size="sm"
-                      className="flex-fill ap-action-btn"
+                      className="ap-action-btn"
                       onClick={e => { e.stopPropagation(); handleDownloadAll(s, api.base_url, flash); }}
                     >
                       <FiDownload />
@@ -220,16 +313,24 @@ export default function ScanOverviewPage() {
                     <Button
                       variant="outline-secondary"
                       size="sm"
-                      className="flex-fill ap-action-btn"
+                      className="ap-action-btn"
                       disabled
                     >
                       –
                     </Button>
                   )}
                   <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={e => { e.stopPropagation(); openEditModal(s); }}
+                    title="Beschreibung/Ort bearbeiten"
+                  >
+                    <FiEdit />
+                  </Button>
+                  <Button
                     variant="outline-danger"
                     size="sm"
-                    className="flex-fill ap-action-btn"
+                    className="ap-action-btn"
                     onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}
                   >
                     <FiTrash />
@@ -319,6 +420,41 @@ export default function ScanOverviewPage() {
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowNewScanModal(false)}>Abbrechen</Button>
           <Button variant="success" onClick={handleNewScanSubmit}>Scan starten</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Edit-Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Scan bearbeiten</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Beschreibung</Form.Label>
+              <Form.Control
+                type="text"
+                value={editValues.description}
+                onChange={e => setEditValues(v => ({ ...v, description: e.target.value }))}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Ort</Form.Label>
+              <Form.Control
+                type="text"
+                value={editValues.location}
+                onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+            Abbrechen
+          </Button>
+          <Button variant="primary" onClick={submitEdit}>
+            Speichern
+          </Button>
         </Modal.Footer>
       </Modal>
 
