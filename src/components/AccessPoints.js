@@ -23,7 +23,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
 
   const [showDeauthModal, setShowDeauthModal] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState({ ap: null, client: null });
-  const [deauthOptions, setDeauthOptions] = useState({ packets: 10, duration: 30, infinite: false });
+  const [deauthOptions, setDeauthOptions] = useState({ packets: 6, duration: 15, infinite: false });
   const [activeDeauths, setActiveDeauths] = useState({});
   const [infiniteDeauths, setInfiniteDeauths] = useState(new Set());
   const [deauthStartTime, setDeauthStartTime] = useState(null);
@@ -43,11 +43,23 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const [cracking, setCracking] = useState(new Set());
 
   const renderCrackButton = (ap) => {
-    const key = `${ap.bssid}|AP`;
-    const filename = ap.handshake_file?.split('/').pop() || handshakeFiles[key];
-    const isCracking = cracking.has(key);
+    const apKey = `${ap.bssid}|AP`;
+    const isCracking = cracking.has(apKey);
 
-    if (!filename) return null;
+    // Handshake-Datei des APs oder eines seiner Clients finden
+    let filename = handshakeFiles[apKey];
+
+    if (!filename) {
+      for (const client of ap.clients) {
+        const clientKey = `${ap.bssid}|${client.mac}`;
+        if (handshakeFiles[clientKey]) {
+          filename = handshakeFiles[clientKey];
+          break;
+        }
+      }
+    }
+
+    if (!filename) return null; // Nichts anzeigen
 
     return (
       <Button
@@ -56,15 +68,39 @@ export default function AccessPoints({ scan, onRescanComplete }) {
         disabled={isCracking}
         onClick={async (e) => {
           e.stopPropagation();
-          setCracking(prev => new Set(prev).add(key));
+          setCracking(prev => new Set(prev).add(apKey));
+
           try {
             const resp = await api.post(`/crack`, {
               ap_id: ap.id,
               filename
             });
+
             if (resp.ok) {
-              flash(resp.body.message || 'Crack-Vorgang abgeschlossen', resp.body.found ? 'success' : 'warning');
-              onRescanComplete?.();
+              flash('Crack gestartet', 'info');
+
+              let attempts = 0;
+              const maxAttempts = 60; // z. B. 3 Minuten lang jede 3 Sekunde prüfen
+              const interval = setInterval(async () => {
+                attempts++;
+                try {
+                  const statusResp = await api.get(`/crack/status/${ap.id}`);
+                  const cracked = statusResp?.body?.cracked_password;
+
+                  if (cracked) {
+                    clearInterval(interval);
+                    flash(`🔓 Passwort gefunden: ${cracked}`, 'success');
+                    onRescanComplete?.();
+                  } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    flash('⚠️ Crack-Vorgang abgeschlossen (kein Treffer)', 'warning');
+                    onRescanComplete?.();
+                  }
+                } catch (err) {
+                  clearInterval(interval);
+                  flash('Fehler beim Abrufen des Crack-Status', 'danger');
+                }
+              }, 3000);
             } else {
               flash(resp.body?.error || 'Fehler beim Cracken', 'danger');
             }
@@ -73,11 +109,12 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           } finally {
             setCracking(prev => {
               const next = new Set(prev);
-              next.delete(key);
+              next.delete(apKey);
               return next;
             });
           }
         }}
+
         className="ms-2"
       >
         {isCracking ? (
@@ -93,6 +130,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   };
 
 
+
   const [handshakeFiles, setHandshakeFiles] = useState({});
   useEffect(() => {
     const hf = {};
@@ -103,7 +141,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
       });
     });
     setHandshakeFiles(hf);
-  }, [scan.access_points]);
+  }, [scan]);
 
   const handleSortSelect = field => {
     setApSort(prev => ({ field, asc: prev.field === field ? !prev.asc : true }));
