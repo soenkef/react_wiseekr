@@ -40,6 +40,59 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     setShowRescanModal(true);
   };
 
+  const [cracking, setCracking] = useState(new Set());
+
+  const renderCrackButton = (ap) => {
+    const key = `${ap.bssid}|AP`;
+    const filename = ap.handshake_file?.split('/').pop() || handshakeFiles[key];
+    const isCracking = cracking.has(key);
+
+    if (!filename) return null;
+
+    return (
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={isCracking}
+        onClick={async (e) => {
+          e.stopPropagation();
+          setCracking(prev => new Set(prev).add(key));
+          try {
+            const resp = await api.post(`/crack`, {
+              ap_id: ap.id,
+              filename
+            });
+            if (resp.ok) {
+              flash(resp.body.message || 'Crack-Vorgang abgeschlossen', resp.body.found ? 'success' : 'warning');
+              onRescanComplete?.();
+            } else {
+              flash(resp.body?.error || 'Fehler beim Cracken', 'danger');
+            }
+          } catch (err) {
+            flash('Netzwerkfehler beim Cracken', 'danger');
+          } finally {
+            setCracking(prev => {
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+          }
+        }}
+        className="ms-2"
+      >
+        {isCracking ? (
+          <>
+            <Spinner animation="border" size="sm" className="me-1" />
+            Crack läuft…
+          </>
+        ) : (
+          'Crack'
+        )}
+      </Button>
+    );
+  };
+
+
   const [handshakeFiles, setHandshakeFiles] = useState({});
   useEffect(() => {
     const hf = {};
@@ -218,6 +271,8 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     );
   };
 
+
+
   return (
     <>
       <div className="d-flex justify-content-between align-items-center mt-4">
@@ -249,6 +304,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           onRescan={openRescan}
           renderDeauthStatus={renderDeauthStatus}
           renderHandshakeLink={renderHandshakeLink}
+          renderCrackButton={renderCrackButton}
           renderHandshakeDropdown={renderHandshakeDropdown}
           activeDeauths={activeDeauths}
           infiniteDeauths={infiniteDeauths}

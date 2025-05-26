@@ -90,6 +90,7 @@ export default function Client({
             </Button>
 
             {renderHandshakeLink(apBssid, client.mac)}
+
           </div>
           
         </div>

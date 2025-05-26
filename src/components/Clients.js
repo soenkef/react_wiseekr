@@ -12,21 +12,25 @@ export default function Clients({
   infiniteDeauths,
   stopDeauth,
 }) {
+  // Entferne doppelte Clients anhand der MAC-Adresse
+  const uniqueClients = Array.from(
+    new Map(clients.map(client => [client.mac, client])).values()
+  );
+
   return (
     <>
       <h6>Clients</h6>
-      {clients.length === 0 ? (
+      {uniqueClients.length === 0 ? (
         <p><em>Keine verbundenen Clients gefunden.</em></p>
       ) : (
-        clients.map(client => {
+        uniqueClients.map(client => {
           const key = `${apBssid}|${client.mac}`;
           const isInfinite = infiniteDeauths.has(key);
-          const isActive = !!activeDeauths[key];
           const showStop = isInfinite;
 
           return (
             <Client
-              key={client.mac}
+              key={key} // jetzt eindeutig
               client={client}
               apBssid={apBssid}
               handleDeauthClient={handleDeauthClient}

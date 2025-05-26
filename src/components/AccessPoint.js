@@ -34,7 +34,8 @@ export default function AccessPoint({
   rescanProgress,
   deauthBssid,
   infiniteDeauths,
-  stopDeauth
+  stopDeauth,
+  renderCrackButton
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = ap.clients.length;
@@ -47,7 +48,6 @@ export default function AccessPoint({
   const apKey = `${ap.bssid}|AP`;
   const isInfinite = infiniteDeauths.has(apKey);
   const [showModal, setShowModal] = useState(false);
-
 
   return (
     <Card className="mb-4 shadow-sm">
@@ -76,15 +76,17 @@ export default function AccessPoint({
                 {handshakeCount}
               </span>
             )}
-            <strong>{ap.essid || '<Hidden>'}</strong>
-            {' '}
+            <strong>{ap.essid || '<Hidden>'}</strong>{' '}
+            {ap.cracked_password && (
+              <div className="mt-2 text-success">
+                <strong>🔓 Passwort:</strong> {ap.cracked_password}
+              </div>
+            )}
             <span className="text-muted">({clientCount} Clients)</span>
           </div>
           <ButtonGroup size="sm">
-            {/* Spinner bei laufendem Deauth */}
             {renderDeauthStatus(ap.bssid, null)}
 
-            {/* STOP BUTTON – nur bei infinite Deauth auf diesem AP */}
             {isInfinite && deauthBssid === ap.bssid && (
               <Button
                 variant="warning"
@@ -113,10 +115,9 @@ export default function AccessPoint({
               {isInfinite ? <FiStopCircle /> : <FiWifiOff />}
             </Button>
 
-            {/* Alle Handshake-Buttons (AP + Clients) */}
             {renderHandshakeDropdown(ap)}
+            {renderCrackButton && renderCrackButton(ap)}
 
-            {/* Rescan-Button */}
             <Button
               variant="outline-secondary"
               size="sm"
@@ -130,7 +131,6 @@ export default function AccessPoint({
               <FiRefreshCw />
             </Button>
 
-            {/* Toggle-Collapse */}
             <Button
               variant="outline-primary"
               size="sm"
@@ -144,31 +144,24 @@ export default function AccessPoint({
           </ButtonGroup>
         </div>
 
-        {/* Nur bei zeitlich begrenztem Deauth anzeigen */}
-        {deauthBssid === ap.bssid &&
-          deauthProgress > 0 &&
-          deauthProgress < 100 &&
-          !Array.from(infiniteDeauths).some(k => k.startsWith(`${ap.bssid}|`)) && (
-            <ProgressBar
-              now={deauthProgress}
-              animated
-              striped
-              variant="danger"
-              className="mt-2"
-              style={{ height: '4px', borderRadius: '2px' }}
-              label={`${Math.round(deauthProgress)}%`}
-            />
-          )}
-
-        {deauthBssid === ap.bssid && deauthProgress > 0 && deauthProgress < 100 && (
-          <div className="text-end small text-muted">
-            {Array.from(infiniteDeauths).some(k => k.startsWith(`${ap.bssid}|`))
-              ? 'Unendlicher Deauth läuft…'
-              : 'Deauth läuft...'}
-          </div>
+        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (
+          <ProgressBar
+            now={deauthProgress}
+            animated
+            striped
+            variant="danger"
+            className="mt-2"
+            style={{ height: '4px', borderRadius: '2px' }}
+            label={`${Math.round(deauthProgress)}%`}
+          />
+        )}
+        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (
+          <div className="text-end small text-muted">Deauth läuft…</div>
+        )}
+        {ap.bssid === deauthBssid && isInfinite && (
+          <div className="text-end small text-muted">Unendlicher Deauth läuft…</div>
         )}
 
-        {/* Rescan-Progressbar */}
         {rescanStartTime !== null && rescanBssid === ap.bssid && rescanProgress < 100 && (
           <ProgressBar
             now={rescanProgress}
@@ -180,7 +173,6 @@ export default function AccessPoint({
         )}
       </Card.Header>
 
-      {/* Modal außerhalb des Headers platzieren */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Achtung</Modal.Title>
@@ -200,15 +192,16 @@ export default function AccessPoint({
 
       <Collapse in={openMap[ap.bssid]}>
         <Card.Body className="bg-light">
-          {/* AP-Details */}
           <div className="row g-2 mb-3">
             {[
               ['BSSID', ap.bssid],
               ['Channel', ap.channel],
               ['Vendor', ap.vendor || '–'],
               ['Privacy', ap.privacy],
+              ['Cracked Password', ap.cracked_password || '–'],
               ['First Seen', new Date(ap.first_seen).toLocaleString(undefined, { timeZone: 'UTC' })],
-              ['Last Seen', new Date(ap.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })], ['Power', ap.power !== undefined ? `${ap.power} dBm` : '–'],
+              ['Last Seen', new Date(ap.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })],
+              ['Power', ap.power !== undefined ? `${ap.power} dBm` : '–'],
               ['Packets', ap.packets !== undefined ? ap.packets : '–']
             ].map(([label, val]) => (
               <div key={label} className="col-12 col-md-6">
