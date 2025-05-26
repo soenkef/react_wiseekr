@@ -69,44 +69,48 @@ export default function AccessPoints({ scan, onRescanComplete }) {
         onClick={async (e) => {
           e.stopPropagation();
           setCracking(prev => new Set(prev).add(apKey));
-
           try {
             const resp = await api.post(`/crack`, {
               ap_id: ap.id,
               filename
             });
 
-            if (resp.ok) {
-              flash('Crack gestartet', 'info');
-
-              let attempts = 0;
-              const maxAttempts = 60; // z. B. 3 Minuten lang jede 3 Sekunde prüfen
-              const interval = setInterval(async () => {
-                attempts++;
-                try {
-                  const statusResp = await api.get(`/crack/status/${ap.id}`);
-                  const cracked = statusResp?.body?.cracked_password;
-
-                  if (cracked) {
-                    clearInterval(interval);
-                    flash(`🔓 Passwort gefunden: ${cracked}`, 'success');
-                    onRescanComplete?.();
-                  } else if (attempts >= maxAttempts) {
-                    clearInterval(interval);
-                    flash('⚠️ Crack-Vorgang abgeschlossen (kein Treffer)', 'warning');
-                    onRescanComplete?.();
-                  }
-                } catch (err) {
-                  clearInterval(interval);
-                  flash('Fehler beim Abrufen des Crack-Status', 'danger');
-                }
-              }, 3000);
-            } else {
+            if (!resp.ok) {
               flash(resp.body?.error || 'Fehler beim Cracken', 'danger');
+              setCracking(prev => {
+                const next = new Set(prev);
+                next.delete(apKey);
+                return next;
+              });
+              return;
             }
+
+            // Cracking gestartet → poll für Ergebnis
+            const interval = setInterval(async () => {
+              const status = await api.get(`/crack/status/${ap.id}`);
+              if (!status.ok) return;
+
+              const password = status.body?.cracked_password;
+              if (password !== null && password !== undefined) {
+                clearInterval(interval);
+                setCracking(prev => {
+                  const next = new Set(prev);
+                  next.delete(apKey);
+                  return next;
+                });
+
+                if (password) {
+                  flash(`🔓 Passwort gefunden: ${password}`, 'success');
+                } else {
+                  flash('Crack-Vorgang abgeschlossen (kein Treffer)', 'warning');
+                }
+
+                onRescanComplete?.(); // scan-Daten neu laden
+              }
+            }, 5000); // alle 5s prüfen
+
           } catch (err) {
             flash('Netzwerkfehler beim Cracken', 'danger');
-          } finally {
             setCracking(prev => {
               const next = new Set(prev);
               next.delete(apKey);
@@ -114,7 +118,6 @@ export default function AccessPoints({ scan, onRescanComplete }) {
             });
           }
         }}
-
         className="ms-2"
       >
         {isCracking ? (
@@ -352,6 +355,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           rescanStartTime={rescanStartTime}
           rescanProgress={rescanProgress}
           stopDeauth={stopDeauth}
+          isCracking={cracking.has(`${ap.bssid}|AP`)}
         />
       ))}
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />

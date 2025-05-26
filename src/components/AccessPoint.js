@@ -35,7 +35,8 @@ export default function AccessPoint({
   deauthBssid,
   infiniteDeauths,
   stopDeauth,
-  renderCrackButton
+  renderCrackButton,
+  isCracking
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = ap.clients.length;
@@ -161,6 +162,10 @@ export default function AccessPoint({
         {ap.bssid === deauthBssid && isInfinite && (
           <div className="text-end small text-muted">Unendlicher Deauth läuft…</div>
         )}
+        {isCracking && (
+          <div className="text-end small text-muted">Cracking läuft…</div>
+        )}
+
 
         {rescanStartTime !== null && rescanBssid === ap.bssid && rescanProgress < 100 && (
           <ProgressBar
