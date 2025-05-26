@@ -37,7 +37,7 @@ export default function AccessPoint({
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = ap.clients.length;
-  
+
   const handshakeCount = ap.clients.reduce((count, c) => {
     const key = `${ap.bssid}|${c.mac}`;
     return handshakeFiles[key] ? count + 1 : count;
@@ -161,7 +161,8 @@ export default function AccessPoint({
               ['Vendor', ap.vendor || '–'],
               ['Privacy', ap.privacy],
               ['First Seen', new Date(ap.first_seen).toLocaleString(undefined, { timeZone: 'UTC' })],
-              ['Last Seen', new Date(ap.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })]
+              ['Last Seen', new Date(ap.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })], ['Power', ap.power !== undefined ? `${ap.power} dBm` : '–'],
+              ['Packets', ap.packets !== undefined ? ap.packets : '–']
             ].map(([label, val]) => (
               <div key={label} className="col-12 col-md-6">
                 <strong>{label}:</strong> {val}

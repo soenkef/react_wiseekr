@@ -48,7 +48,7 @@ export default function ScanOverviewPage() {
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
-    if (response.ok) { 
+    if (response.ok) {
       setScans(response.body);
     }
     else {
@@ -176,9 +176,16 @@ export default function ScanOverviewPage() {
   };
 
   // --- Filter + Sort ---
-  const filtered = scans.filter(scan =>
-    Object.values(scan).some(v => v?.toString().toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = scans.filter(scan => {
+    const q = search.toLowerCase();
+    return (
+      scan.description?.toLowerCase().includes(q) ||
+      scan.location?.toLowerCase().includes(q) ||
+      scan.filename?.toLowerCase().includes(q) ||
+      scan.created_at?.toLowerCase().includes(q) ||
+      scan.access_points_count?.toString().includes(q)
+    );
+  });
   const sortedScans = useMemo(() => {
     const list = [...filtered];
     const { field, asc } = sortConfig;

@@ -19,6 +19,17 @@ export default function ScanDetailPage() {
 
   const [scan, setScan] = useState(null);
 
+  // Editierfunktion, um Scan-Daten zu aktualisieren
+  const updateScan = async (data) => {
+    const resp = await api.put(`/scans/${scanId}`, data);
+    if (resp.ok) {
+      setScan(prev => ({ ...prev, ...resp.body }));
+      flash('Scan aktualisiert', 'success');
+    } else {
+      flash(resp.body?.error || 'Aktualisierung fehlgeschlagen', 'danger');
+    }
+  };
+
   // Hilfsfunktion, um Scan-Daten neu einzulesen
   const reloadScan = async () => {
     const resp = await api.get(`/scans/${scanId}`);
@@ -45,8 +56,9 @@ export default function ScanDetailPage() {
       <ScanHeader
         scan={scan}
         onDownload={() => handleDownload(scan, api.base_url, flash)}
+        onUpdate={updateScan}
       />
-      <AccessPoints scan={scan} onRescanComplete={reloadScan}/>
+      <AccessPoints scan={scan} onRescanComplete={reloadScan} />
       <UnlinkedClients scan={scan} />
     </Body>
   );

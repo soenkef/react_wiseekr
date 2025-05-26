@@ -10,6 +10,7 @@ import { useApi } from '../contexts/ApiProvider';
 import { useFlash } from '../contexts/FlashProvider';
 import { DeauthModal, RescanModal } from './Modals';
 import AccessPoint from './AccessPoint';
+import Form from 'react-bootstrap/Form';
 
 export default function AccessPoints({ scan, onRescanComplete }) {
   const api = useApi();
@@ -18,8 +19,10 @@ export default function AccessPoints({ scan, onRescanComplete }) {
 
   // UI state
   const [openMap, setOpenMap] = useState({});
-  const [apSort, setApSort] = useState({ field: null, asc: true });
-
+  const [apSort, setApSort] = useState({ field: 'power', asc: false }); // ← hier auch Default geändert!
+  const handleSortSelect = field =>
+    setApSort(prev => ({ field, asc: prev.field === field ? !prev.asc : true }));
+  
   // Deauth state + progress
   const [showDeauthModal, setShowDeauthModal] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState({ ap: null, client: null });
@@ -36,6 +39,9 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const [rescanStartTime, setRescanStartTime] = useState(null);
   const [rescanProgress, setRescanProgress] = useState(0);
 
+  // Suche
+  const [search, setSearch] = useState('');
+
   // Handshake files
   const [handshakeFiles, setHandshakeFiles] = useState({});
   useEffect(() => {
@@ -49,11 +55,26 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     setHandshakeFiles(hf);
   }, [scan.access_points]);
 
-  // Sorting logic
-  const handleSortSelect = field =>
-    setApSort(prev => ({ field, asc: prev.field === field ? !prev.asc : true }));
+  // Sorting logic and search filtering
+  const filteredAPs = useMemo(() => {
+    const lowerSearch = search.toLowerCase();
+    return scan.access_points.filter(ap => {
+      const matchesAp =
+        ap.bssid.toLowerCase().includes(lowerSearch) ||
+        ap.essid?.toLowerCase().includes(lowerSearch) ||
+        ap.vendor?.toLowerCase().includes(lowerSearch);
+
+      const matchesClients = ap.clients.some(c =>
+        c.mac.toLowerCase().includes(lowerSearch) ||
+        c.vendor?.toLowerCase().includes(lowerSearch)
+      );
+
+      return matchesAp || matchesClients;
+    });
+  }, [scan.access_points, search]);
+
   const sortedAPs = useMemo(() => {
-    const list = [...scan.access_points];
+    const list = [...filteredAPs];
     const { field, asc } = apSort;
     if (!field) return list;
     return list.sort((a, b) => {
@@ -72,7 +93,8 @@ export default function AccessPoints({ scan, onRescanComplete }) {
       if (av > bv) return asc ? 1 : -1;
       return 0;
     });
-  }, [scan.access_points, apSort]);
+  }, [filteredAPs, apSort]);
+
 
   // Deauth handlers
   const openDeauth = (ap, client = null) => {
@@ -229,56 +251,56 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   };
 
   // Hilfsfunktion, um die Anzahl der Client-Handshakes zu zählen
-const renderHandshakeDropdown = (ap) => {
-  const items = [];
+  const renderHandshakeDropdown = (ap) => {
+    const items = [];
 
-  const keyAp = `${ap.bssid}|AP`;
-  if (handshakeFiles[keyAp]) {
-    items.push(
-      <Dropdown.Item
-        key={keyAp}
-        onClick={e => {
-          e.stopPropagation(); // ✅ wichtig!
-          handleDownloadFile(scanId, handshakeFiles[keyAp], api.base_url, flash);
-        }}
-      >
-        {ap.bssid}
-      </Dropdown.Item>
-    );
-  }
-
-  ap.clients.forEach(c => {
-    const key = `${ap.bssid}|${c.mac}`;
-    if (handshakeFiles[key]) {
+    const keyAp = `${ap.bssid}|AP`;
+    if (handshakeFiles[keyAp]) {
       items.push(
         <Dropdown.Item
-          key={key}
+          key={keyAp}
           onClick={e => {
             e.stopPropagation(); // ✅ wichtig!
-            handleDownloadFile(scanId, handshakeFiles[key], api.base_url, flash);
+            handleDownloadFile(scanId, handshakeFiles[keyAp], api.base_url, flash);
           }}
         >
-          {c.mac}
+          {ap.bssid}
         </Dropdown.Item>
       );
     }
-  });
 
-  if (!items.length) return null;
+    ap.clients.forEach(c => {
+      const key = `${ap.bssid}|${c.mac}`;
+      if (handshakeFiles[key]) {
+        items.push(
+          <Dropdown.Item
+            key={key}
+            onClick={e => {
+              e.stopPropagation(); // ✅ wichtig!
+              handleDownloadFile(scanId, handshakeFiles[key], api.base_url, flash);
+            }}
+          >
+            {c.mac}
+          </Dropdown.Item>
+        );
+      }
+    });
 
-  return (
-    <div onClick={e => e.stopPropagation()} className="me-1">
-      <DropdownButton
-        variant="success"
-        size="sm"
-        title={<><FiDownload className="me-1" />Handshake</>}
-        align="end"
-      >
-        {items}
-      </DropdownButton>
-    </div>
-  );
-};
+    if (!items.length) return null;
+
+    return (
+      <div onClick={e => e.stopPropagation()} className="me-1">
+        <DropdownButton
+          variant="success"
+          size="sm"
+          title={<><FiDownload className="me-1" />Handshake</>}
+          align="end"
+        >
+          {items}
+        </DropdownButton>
+      </div>
+    );
+  };
 
 
 
@@ -301,6 +323,15 @@ const renderHandshakeDropdown = (ap) => {
         </Dropdown>
       </div>
       <hr />
+
+      {/* Suchleiste */}
+      <Form.Control
+        type="search"
+        className="mb-3"
+        placeholder="Suche nach BSSID, ESSID, Client MAC, Vendor..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
 
       {/* AccessPoints */}
       {sortedAPs.map(ap => (
