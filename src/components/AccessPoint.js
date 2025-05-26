@@ -32,7 +32,7 @@ export default function AccessPoint({
   rescanBssid,
   rescanProgress,
   deauthBssid,
-  infinite,
+  infiniteDeauths,
   stopDeauth
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
@@ -42,6 +42,9 @@ export default function AccessPoint({
     const key = `${ap.bssid}|${c.mac}`;
     return handshakeFiles[key] ? count + 1 : count;
   }, handshakeFiles[`${ap.bssid}|AP`] ? 1 : 0);
+
+  const apKey = `${ap.bssid}|AP`;
+  const isInfinite = infiniteDeauths.has(apKey);
 
   return (
     <Card className="mb-4 shadow-sm">
@@ -68,7 +71,7 @@ export default function AccessPoint({
             {renderDeauthStatus(ap.bssid, null)}
 
             {/* STOP BUTTON – nur bei infinite Deauth auf diesem AP */}
-            {infinite && deauthBssid === ap.bssid && (
+            {isInfinite && deauthBssid === ap.bssid && (
               <Button
                 variant="warning"
                 size="sm"
@@ -80,12 +83,12 @@ export default function AccessPoint({
             )}
 
             <Button
-              variant={infinite ? 'warning' : 'danger'}
+              variant={isInfinite ? 'warning' : 'danger'}
               size="sm"
-              disabled={ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100}
+              disabled={activeDeauths[apKey]}
               onClick={e => {
                 e.stopPropagation();
-                if (infinite) {
+                if (isInfinite) {
                   stopDeauth(ap.bssid);
                 } else {
                   onDeauthAp(ap.bssid);
@@ -93,7 +96,7 @@ export default function AccessPoint({
               }}
               className="me-1"
             >
-              {infinite ? <FiStopCircle /> : <FiWifiOff />}
+              {isInfinite ? <FiStopCircle /> : <FiWifiOff />}
             </Button>
 
             {/* Alle Handshake-Buttons (AP + Clients) */}
@@ -133,7 +136,7 @@ export default function AccessPoint({
             now={deauthProgress}
             animated
             striped
-            variant={infinite ? 'warning' : 'danger'}
+            variant={isInfinite ? 'warning' : 'danger'}
             className="mt-2"
             style={{ height: '4px', borderRadius: '2px' }}
           />
@@ -178,8 +181,10 @@ export default function AccessPoint({
             renderHandshakeLink={renderHandshakeLink}
             activeDeauths={activeDeauths}
             deauthInProgress={deauthProgress > 0 && deauthProgress < 100}
-            infinite={infinite}
+            isInfinite={isInfinite}
+            infiniteDeauths={infiniteDeauths}
             stopDeauth={stopDeauth}
+            handshakeFiles={handshakeFiles}
           />
         </Card.Body>
       </Collapse>

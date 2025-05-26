@@ -2,7 +2,7 @@ import React from 'react';
 import Card from 'react-bootstrap/Card';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Button from 'react-bootstrap/Button';
-import { FiAlertTriangle, FiWifiOff } from 'react-icons/fi';
+import { FiAlertTriangle, FiWifiOff, FiStopCircle } from 'react-icons/fi';
 
 export default function Client({
   client,
@@ -13,7 +13,7 @@ export default function Client({
   activeDeauths,
   deauthInProgress,
   infinite,
-  deauthBssid,
+  showStop,
   stopDeauth
 }) {
   const key = `${apBssid}|${client.mac}`;
@@ -29,45 +29,52 @@ export default function Client({
           </div>
           <div className="d-flex align-items-center">
             {renderDeauthStatus(apBssid, client.mac)}
-            { /* unendliche Client-Deauth stoppen */}
-            {infinite && deauthInProgress && activeDeauths[key] && (
+
+            {showStop && (
               <Button
                 variant="warning"
                 size="sm"
-                onClick={() => stopDeauth()}
+                onClick={e => {
+                  e.stopPropagation(); // ← Wichtig!
+                  stopDeauth();
+                }}
                 className="me-2"
               >
+                <FiStopCircle className="me-1" />
                 Stop
               </Button>
             )}
-            { /* ansonsten normal deauthen */}
-            {!infinite && (
-              <Button
-                variant="outline-danger"
-                size="sm"
-                disabled={deauthInProgress || !!activeDeauths[key]}
-                onClick={() => handleDeauthClient(apBssid, client.mac)}
-                className="me-2"
-              >
-                <FiWifiOff className="me-1" />
-                Deauth
-              </Button>
-            )}
+
+
+            <Button
+              variant={infinite ? 'warning' : 'outline-danger'}
+              size="sm"
+              disabled={deauthInProgress || !!activeDeauths[key]}
+              onClick={() => handleDeauthClient(apBssid, client.mac)}
+              className="me-2"
+            >
+              <FiWifiOff className="me-1" />
+              Deauth
+            </Button>
+
             {renderHandshakeLink(apBssid, client.mac)}
           </div>
         </div>
+
         <ListGroup variant="flush">
           <ListGroup.Item>
             <strong>Vendor:</strong> {client.vendor || '–'}
           </ListGroup.Item>
           <ListGroup.Item>
-            <strong>Power:</strong> {client.power}
+            <strong>Power:</strong> {client.power ?? '–'} dBm
           </ListGroup.Item>
           <ListGroup.Item>
-            <strong>First Seen:</strong> {new Date(client.first_seen).toLocaleString(undefined, { timeZone: 'UTC' })}
+            <strong>First Seen:</strong>{' '}
+            {new Date(client.first_seen).toLocaleString(undefined, { timeZone: 'UTC' })}
           </ListGroup.Item>
           <ListGroup.Item>
-            <strong>Last Seen:</strong> {new Date(client.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })}
+            <strong>Last Seen:</strong>{' '}
+            {new Date(client.last_seen).toLocaleString(undefined, { timeZone: 'UTC' })}
           </ListGroup.Item>
           <ListGroup.Item>
             <strong>Probed ESSIDs:</strong> {client.probed_essids || '–'}

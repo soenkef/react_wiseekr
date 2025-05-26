@@ -1,5 +1,5 @@
 import React from 'react';
-import Client from './Client';
+import Client from './Client'; // das ist die Card-Komponente
 
 export default function Clients({
   apBssid,
@@ -9,30 +9,38 @@ export default function Clients({
   renderHandshakeLink,
   activeDeauths,
   deauthInProgress,
-  infinite,
-  stopDeauth
+  infiniteDeauths,
+  stopDeauth,
 }) {
   return (
-    <div>
-      <h6 className="mb-3">Clients ({clients.length})</h6>
+    <>
+      <h6>Clients</h6>
       {clients.length === 0 ? (
-        <p>Keine verbundenen Clients.</p>
+        <p><em>Keine verbundenen Clients gefunden.</em></p>
       ) : (
-        clients.map(client => (
-          <Client
-            key={client.mac}
-            client={client}
-            apBssid={apBssid}
-            handleDeauthClient={handleDeauthClient}
-            renderDeauthStatus={renderDeauthStatus}
-            renderHandshakeLink={renderHandshakeLink}
-            activeDeauths={activeDeauths}
-            deauthInProgress={deauthInProgress}
-            infinite={infinite}
-            stopDeauth={stopDeauth}
-          />
-        ))
+        clients.map(client => {
+          const key = `${apBssid}|${client.mac}`;
+          const isInfinite = infiniteDeauths.has(key);
+          const isActive = !!activeDeauths[key];
+          const showStop = isInfinite;
+
+          return (
+            <Client
+              key={client.mac}
+              client={client}
+              apBssid={apBssid}
+              handleDeauthClient={handleDeauthClient}
+              renderDeauthStatus={renderDeauthStatus}
+              renderHandshakeLink={renderHandshakeLink}
+              activeDeauths={activeDeauths}
+              deauthInProgress={deauthInProgress}
+              infinite={isInfinite}
+              showStop={showStop}
+              stopDeauth={() => stopDeauth(apBssid, client.mac)}
+            />
+          );
+        })
       )}
-    </div>
+    </>
   );
 }
