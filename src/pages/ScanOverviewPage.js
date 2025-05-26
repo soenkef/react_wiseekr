@@ -48,8 +48,12 @@ export default function ScanOverviewPage() {
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
-    if (response.ok) setScans(response.body);
-    else flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
+    if (response.ok) { 
+      setScans(response.body);
+    }
+    else {
+      flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
+    }
   }, [api, flash]);
 
   useEffect(() => {
