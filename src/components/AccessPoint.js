@@ -184,7 +184,7 @@ export default function AccessPoint({
         </Modal.Header>
         <Modal.Body>
           <p>
-            Dieses Gerät wurde als mögliche <strong>Überwachungstechnik</strong> erkannt
+            Dieses Gerät oder ein verbundenes Gerät wurde als mögliche <strong>Überwachungstechnik</strong> erkannt
             (z. B. Kamera oder ähnliches).
           </p>
         </Modal.Body>
