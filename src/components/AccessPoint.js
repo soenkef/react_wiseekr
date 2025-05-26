@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Modal from 'react-bootstrap/Modal';
 import Card from 'react-bootstrap/Card';
 import Collapse from 'react-bootstrap/Collapse';
 import Button from 'react-bootstrap/Button';
@@ -45,13 +46,26 @@ export default function AccessPoint({
 
   const apKey = `${ap.bssid}|AP`;
   const isInfinite = infiniteDeauths.has(apKey);
+  const [showModal, setShowModal] = useState(false);
+
 
   return (
     <Card className="mb-4 shadow-sm">
       <Card.Header style={{ cursor: 'pointer' }} onClick={() => toggleOpen(ap.bssid)}>
         <div className="d-flex justify-content-between align-items-center">
           <div>
-            {hasCam && <FiAlertTriangle className="text-warning me-2" />}
+            {hasCam && (
+              <FiAlertTriangle
+                className="text-warning me-2"
+                role="button"
+                title="Kameragerät"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowModal(true);
+                }}
+              />
+            )}
+
             {handshakeCount > 0 && (
               <span
                 className="badge bg-success me-2"
@@ -130,16 +144,28 @@ export default function AccessPoint({
           </ButtonGroup>
         </div>
 
-        {/* Deauth-Progressbar */}
-        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && (
-          <ProgressBar
-            now={deauthProgress}
-            animated
-            striped
-            variant={isInfinite ? 'warning' : 'danger'}
-            className="mt-2"
-            style={{ height: '4px', borderRadius: '2px' }}
-          />
+        {/* Nur bei zeitlich begrenztem Deauth anzeigen */}
+        {deauthBssid === ap.bssid &&
+          deauthProgress > 0 &&
+          deauthProgress < 100 &&
+          !Array.from(infiniteDeauths).some(k => k.startsWith(`${ap.bssid}|`)) && (
+            <ProgressBar
+              now={deauthProgress}
+              animated
+              striped
+              variant="danger"
+              className="mt-2"
+              style={{ height: '4px', borderRadius: '2px' }}
+              label={`${Math.round(deauthProgress)}%`}
+            />
+          )}
+
+        {deauthBssid === ap.bssid && deauthProgress > 0 && deauthProgress < 100 && (
+          <div className="text-end small text-muted">
+            {Array.from(infiniteDeauths).some(k => k.startsWith(`${ap.bssid}|`))
+              ? 'Unendlicher Deauth läuft…'
+              : 'Deauth läuft...'}
+          </div>
         )}
 
         {/* Rescan-Progressbar */}
@@ -153,6 +179,24 @@ export default function AccessPoint({
           />
         )}
       </Card.Header>
+
+      {/* Modal außerhalb des Headers platzieren */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Achtung</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            Dieses Gerät wurde als mögliche <strong>Überwachungstechnik</strong> erkannt
+            (z. B. Kamera oder ähnliches).
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Schließen
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Collapse in={openMap[ap.bssid]}>
         <Card.Body className="bg-light">

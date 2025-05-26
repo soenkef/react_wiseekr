@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Modal from 'react-bootstrap/Modal';
 import Card from 'react-bootstrap/Card';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Button from 'react-bootstrap/Button';
+
 import { FiAlertTriangle, FiWifiOff, FiStopCircle } from 'react-icons/fi';
 
 export default function Client({
@@ -18,13 +20,43 @@ export default function Client({
 }) {
   const key = `${apBssid}|${client.mac}`;
   const isCamera = client.is_camera;
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <Card className="mb-3 shadow-sm">
       <Card.Body>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div className="d-flex align-items-center">
-            {isCamera && <FiAlertTriangle className="text-warning me-2" />}
+            {isCamera && (
+              <>
+                <FiAlertTriangle
+                  className="text-warning me-2"
+                  role="button"
+                  title="Kameragerät"
+                  onClick={(e) => {
+                    e.stopPropagation(); // verhindert Toggle des Card-Headers
+                    setShowModal(true);
+                  }}
+                />
+                <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+                  <Modal.Header closeButton>
+                    <Modal.Title>Achtung</Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    <p>
+                      Dieses Gerät wurde als mögliche <strong>Überwachungstechnik</strong> erkannt
+                      (z. B. Kamera oder ähnliches).
+                    </p>
+                  </Modal.Body>
+                  <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>
+                      Schließen
+                    </Button>
+                  </Modal.Footer>
+                </Modal>
+              </>
+            )}
+
             <span className="text-monospace fw-bold">{client.mac}</span>
           </div>
           <div className="d-flex align-items-center">
@@ -59,6 +91,7 @@ export default function Client({
 
             {renderHandshakeLink(apBssid, client.mac)}
           </div>
+          
         </div>
 
         <ListGroup variant="flush">

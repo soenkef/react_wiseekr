@@ -89,24 +89,24 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   };
 
   const submitRescan = async () => {
-  setShowRescanModal(false);
-  setRescanStartTime(Date.now());
-  setRescanProgress(0);
-  flash('Rescan gestartet...', 'warning');
-  try {
-    const resp = await api.post(`/scans/${scanId}/scan_ap`, {
-      bssid: rescanBssid,
-      duration: rescanOptions.duration
-    });
-    if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
-    flash('Rescan abgeschlossen', 'success');
-    onRescanComplete?.();
-  } catch (err) {
-    flash(err.message, 'danger');
-  } finally {
-    setRescanStartTime(null);
-  }
-};
+    setShowRescanModal(false);
+    setRescanStartTime(Date.now());
+    setRescanProgress(0);
+    flash('Rescan gestartet...', 'warning');
+    try {
+      const resp = await api.post(`/scans/${scanId}/scan_ap`, {
+        bssid: rescanBssid,
+        duration: rescanOptions.duration
+      });
+      if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
+      flash('Rescan abgeschlossen', 'success');
+      onRescanComplete?.();
+    } catch (err) {
+      flash(err.message, 'danger');
+    } finally {
+      setRescanStartTime(null);
+    }
+  };
 
 
   const submitDeauth = async () => {
@@ -136,10 +136,12 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     } catch (err) {
       flash(err.message, 'danger');
     } finally {
-      setActiveDeauths(prev => { const next = { ...prev }; delete next[key]; return next; });
+      setActiveDeauths(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       setShowDeauthModal(false);
-      setDeauthStartTime(null);
-      setDeauthBssid(null);
     }
   };
 
@@ -160,6 +162,25 @@ export default function AccessPoints({ scan, onRescanComplete }) {
       flash(resp.body?.error || 'Stop failed', 'danger');
     }
   };
+
+  useEffect(() => {
+    if (deauthStartTime == null) return;
+    const iv = setInterval(() => {
+      const elapsed = (Date.now() - deauthStartTime) / 1000;
+      const pct = Math.min(100,
+        deauthOptions.duration > 0
+          ? elapsed / deauthOptions.duration * 100
+          : 100
+      );
+      setDeauthProgress(pct);
+      if (pct >= 100) {
+        clearInterval(iv);
+        setDeauthStartTime(null);
+        setDeauthBssid(null); // ⬅️ wichtig: erst jetzt zurücksetzen
+      }
+    }, 200);
+    return () => clearInterval(iv);
+  }, [deauthStartTime, deauthOptions.duration]);
 
   const renderDeauthStatus = (ap, client) => {
     const key = `${ap}|${client || 'AP'}`;
