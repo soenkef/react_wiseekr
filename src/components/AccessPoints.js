@@ -229,53 +229,57 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   };
 
   // Hilfsfunktion, um die Anzahl der Client-Handshakes zu zählen
-  const renderHandshakeDropdown = (ap) => {
-    const items = [];
+const renderHandshakeDropdown = (ap) => {
+  const items = [];
 
-    const keyAp = `${ap.bssid}|AP`;
-    if (handshakeFiles[keyAp]) {
+  const keyAp = `${ap.bssid}|AP`;
+  if (handshakeFiles[keyAp]) {
+    items.push(
+      <Dropdown.Item
+        key={keyAp}
+        onClick={e => {
+          e.stopPropagation(); // ✅ wichtig!
+          handleDownloadFile(scanId, handshakeFiles[keyAp], api.base_url, flash);
+        }}
+      >
+        {ap.bssid}
+      </Dropdown.Item>
+    );
+  }
+
+  ap.clients.forEach(c => {
+    const key = `${ap.bssid}|${c.mac}`;
+    if (handshakeFiles[key]) {
       items.push(
         <Dropdown.Item
-          key={keyAp}
-          onClick={() =>
-            handleDownloadFile(scanId, handshakeFiles[keyAp], api.base_url, flash)
-          }
+          key={key}
+          onClick={e => {
+            e.stopPropagation(); // ✅ wichtig!
+            handleDownloadFile(scanId, handshakeFiles[key], api.base_url, flash);
+          }}
         >
-          {ap.bssid}
+          {c.mac}
         </Dropdown.Item>
       );
     }
+  });
 
-    ap.clients.forEach(c => {
-      const key = `${ap.bssid}|${c.mac}`;
-      if (handshakeFiles[key]) {
-        items.push(
-          <Dropdown.Item
-            key={key}
-            onClick={() =>
-              handleDownloadFile(scanId, handshakeFiles[key], api.base_url, flash)
-            }
-          >
-            {c.mac}
-          </Dropdown.Item>
-        );
-      }
-    });
+  if (!items.length) return null;
 
-    if (!items.length) return null;
-
-    return (
+  return (
+    <div onClick={e => e.stopPropagation()} className="me-1">
       <DropdownButton
         variant="success"
         size="sm"
         title={<><FiDownload className="me-1" />Handshake</>}
         align="end"
-        className="me-1"
       >
         {items}
       </DropdownButton>
-    );
-  };
+    </div>
+  );
+};
+
 
 
   return (

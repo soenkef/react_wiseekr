@@ -37,8 +37,11 @@ export default function AccessPoint({
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = ap.clients.length;
-  const hasHandshake = Object.keys(handshakeFiles)
-    .some(key => key.startsWith(`${ap.bssid}|`));
+  
+  const handshakeCount = ap.clients.reduce((count, c) => {
+    const key = `${ap.bssid}|${c.mac}`;
+    return handshakeFiles[key] ? count + 1 : count;
+  }, handshakeFiles[`${ap.bssid}|AP`] ? 1 : 0);
 
   return (
     <Card className="mb-4 shadow-sm">
@@ -46,11 +49,15 @@ export default function AccessPoint({
         <div className="d-flex justify-content-between align-items-center">
           <div>
             {hasCam && <FiAlertTriangle className="text-warning me-2" />}
-            {hasHandshake && (
-              <FiDownload
-                className="text-success me-2"
-                title="Handshake vorhanden"
-              />
+            {handshakeCount > 0 && (
+              <span
+                className="badge bg-success me-2"
+                title={`${handshakeCount} Handshake-Datei(en) vorhanden`}
+                style={{ fontSize: '0.75em' }}
+              >
+                <FiDownload className="me-1" />
+                {handshakeCount}
+              </span>
             )}
             <strong>{ap.essid || '<Hidden>'}</strong>
             {' '}
