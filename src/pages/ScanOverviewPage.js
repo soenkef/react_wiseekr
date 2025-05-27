@@ -277,9 +277,6 @@ export default function ScanOverviewPage() {
             <th onClick={() => requestSort('location')} style={{ cursor: 'pointer' }}>
               Ort{headerArrow('location')}
             </th>
-            <th className="text-end" onClick={() => requestSort('access_points_count')} style={{ cursor: 'pointer' }}>
-              #AP{headerArrow('access_points_count')}
-            </th>
             <th className="text-end">Aktionen</th>
           </tr>
         </thead>
@@ -308,7 +305,6 @@ export default function ScanOverviewPage() {
                 </small>
               </td>
               <td>{s.location || <em>kein Ort</em>}</td>
-              <td className="text-end">{s.access_points_count}</td>
               <td className="text-end">
                 <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 flex-wrap justify-content-end">
                   {s.filename ? (

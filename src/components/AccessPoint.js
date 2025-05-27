@@ -93,16 +93,11 @@ export default function AccessPoint({
             )}
             <span className="text-muted">({clientCount} Clients)</span>
           </div>
-          <ButtonGroup size="sm">
+          <ButtonGroup size="sm" className="gap-1">
             {renderDeauthStatus(ap.bssid, null)}
 
             {isInfinite && deauthBssid === ap.bssid && (
-              <Button
-                variant="warning"
-                size="sm"
-                className="me-1"
-                onClick={e => { e.stopPropagation(); stopDeauth(ap.bssid); }}
-              >
+              <Button variant="warning" size="sm" onClick={e => { e.stopPropagation(); stopDeauth(ap.bssid); }}>
                 Stop
               </Button>
             )}
@@ -119,13 +114,15 @@ export default function AccessPoint({
                   onDeauthAp(ap.bssid);
                 }
               }}
-              className="me-1"
             >
               {isInfinite ? <FiStopCircle /> : <FiWifiOff />}
             </Button>
 
-            {renderHandshakeDropdown(ap)}
-            {renderCrackButton && renderCrackButton(ap)}
+            <div onClick={e => e.stopPropagation()} className="btn-group-item">{renderHandshakeDropdown(ap)}</div>
+
+            {renderCrackButton && (
+              <div className="btn-group-item">{renderCrackButton(ap)}</div>
+            )}
 
             <Button
               variant="outline-secondary"
@@ -135,7 +132,6 @@ export default function AccessPoint({
                 e.stopPropagation();
                 onRescan(ap.bssid);
               }}
-              className="me-1"
             >
               <FiRefreshCw />
             </Button>
@@ -150,11 +146,12 @@ export default function AccessPoint({
             >
               {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
             </Button>
+
             <Button
               variant="outline-secondary"
               size="sm"
               title="Client-Graph anzeigen"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 setShowGraphModal(true);
               }}
@@ -162,6 +159,7 @@ export default function AccessPoint({
               <FiBarChart2 />
             </Button>
           </ButtonGroup>
+
         </div>
 
         {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (

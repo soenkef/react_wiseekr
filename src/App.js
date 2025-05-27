@@ -15,7 +15,6 @@ import RegistrationPage from './pages/RegistrationPage';
 import EditUserPage from './pages/EditUserPage';
 import ResetRequestPage from './pages/ResetRequestPage';
 import ResetPage from './pages/ResetPage';
-import ScanStreamPage from './pages/ScanStreamPage';
 import ScanOverviewPage from './pages/ScanOverviewPage';
 import ScanDetailPage from './pages/ScanDetailPage';
 import SettingsPage from './pages/SettingsPage';
@@ -52,7 +51,6 @@ export default function App() {
                         <Route path="/scans" element={<ScanOverviewPage />} />
                         <Route path="/scan/:id" element={<ScanDetailPage />} />
 
-                        <Route path="/scan-stream" element={<ScanStreamPage />} />
                         <Route path="/edit" element={<EditUserPage />} />
                         <Route path="/password" element={<ChangePasswordPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
