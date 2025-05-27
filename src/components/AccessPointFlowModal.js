@@ -69,7 +69,7 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
                                 <div className="client-vendor">{client.vendor || '–'}</div>
                                 <div className="client-power">Power: {client.power ?? '–'} dBm</div>
                                 <div className="client-packets">Packets: {client.packets ?? '–'}</div>
-                                {client.is_camera && <div className="client-camera">📷 Überwachungsgerät erkannt</div>}
+                                {client.is_camera && <div className="client-camera">📷 ggf. Überwachungsgerät erkannt</div>}
                             </div>
                         ))}
                     </div>

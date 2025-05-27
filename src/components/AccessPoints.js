@@ -375,6 +375,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           rescanProgress={rescanProgress}
           stopDeauth={stopDeauth}
           isCracking={cracking.has(`${ap.bssid}|AP`)}
+          scanMeta={{ description: scan.description, location: scan.location }}
         />
       ))}
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />

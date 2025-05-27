@@ -39,7 +39,8 @@ export default function AccessPoint({
   infiniteDeauths,
   stopDeauth,
   renderCrackButton,
-  isCracking
+  isCracking,
+  scanMeta
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = ap.clients.length;
@@ -249,7 +250,7 @@ export default function AccessPoint({
           />
         </Card.Body>
       </Collapse>
-      <AccessPointFlowModal show={showGraphModal} onHide={() => setShowGraphModal(false)} ap={ap} />
+      <AccessPointFlowModal show={showGraphModal} onHide={() => setShowGraphModal(false)} ap={{ ...ap, ...scanMeta }} />
 
     </Card>
   );
