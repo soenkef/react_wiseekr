@@ -59,6 +59,7 @@ export default function ScanDetailPage() {
         onUpdate={updateScan}
       />
       <AccessPoints scan={scan} onRescanComplete={reloadScan} />
+      <hr />
       <UnlinkedClients scan={scan} />
     </Body>
   );

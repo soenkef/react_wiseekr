@@ -92,7 +92,7 @@ export default function Client({
             {renderHandshakeLink(apBssid, client.mac)}
 
           </div>
-          
+
         </div>
 
         <ListGroup variant="flush">
@@ -101,6 +101,9 @@ export default function Client({
           </ListGroup.Item>
           <ListGroup.Item>
             <strong>Power:</strong> {client.power ?? '–'} dBm
+          </ListGroup.Item>
+          <ListGroup.Item>
+            <strong>Packets:</strong> {client.packets ?? '–'}
           </ListGroup.Item>
           <ListGroup.Item>
             <strong>First Seen:</strong>{' '}

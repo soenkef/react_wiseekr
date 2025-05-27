@@ -12,9 +12,12 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiDownload,
-  FiStopCircle
+  FiStopCircle,
+  FiBarChart2
 } from 'react-icons/fi';
 import Clients from './Clients';
+import AccessPointFlowModal from './AccessPointFlowModal';
+
 
 export default function AccessPoint({
   ap,
@@ -49,6 +52,10 @@ export default function AccessPoint({
   const apKey = `${ap.bssid}|AP`;
   const isInfinite = infiniteDeauths.has(apKey);
   const [showModal, setShowModal] = useState(false);
+
+  const [showGraphModal, setShowGraphModal] = useState(false);
+
+
 
   return (
     <Card className="mb-4 shadow-sm">
@@ -142,6 +149,17 @@ export default function AccessPoint({
             >
               {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
             </Button>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              title="Client-Graph anzeigen"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowGraphModal(true);
+              }}
+            >
+              <FiBarChart2 />
+            </Button>
           </ButtonGroup>
         </div>
 
@@ -214,6 +232,7 @@ export default function AccessPoint({
               </div>
             ))}
           </div>
+          <hr />
 
           <Clients
             apBssid={ap.bssid}
@@ -230,6 +249,8 @@ export default function AccessPoint({
           />
         </Card.Body>
       </Collapse>
+      <AccessPointFlowModal show={showGraphModal} onHide={() => setShowGraphModal(false)} ap={ap} />
+
     </Card>
   );
 }

@@ -132,6 +132,25 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     );
   };
 
+  useEffect(() => {
+    if (rescanStartTime == null || !rescanBssid) return;
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - rescanStartTime) / 1000;
+      const pct = Math.min(100, (elapsed / rescanOptions.duration) * 100);
+      setRescanProgress(pct);
+
+      if (pct >= 100) {
+        clearInterval(interval);
+        setRescanStartTime(null);
+        setRescanBssid(null);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [rescanStartTime, rescanOptions.duration, rescanBssid]);
+
+
 
 
   const [handshakeFiles, setHandshakeFiles] = useState({});

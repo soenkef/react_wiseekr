@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import Card from 'react-bootstrap/Card';
 import Dropdown from 'react-bootstrap/Dropdown';
-import { FiArrowUp, FiArrowDown, FiAlertTriangle } from 'react-icons/fi';
+import { FiAlertTriangle, FiFilter } from 'react-icons/fi';
+import Button from 'react-bootstrap/Button';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
 export default function UnlinkedClients({ scan }) {
   const [sort, setSort] = useState({ column: 'mac', asc: true });
@@ -25,10 +27,9 @@ export default function UnlinkedClients({ scan }) {
     <div className="mt-4">
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h5 className="mb-0">Clients ohne Access Point</h5>
-        <Dropdown>
-          <Dropdown.Toggle variant="outline-secondary" size="sm">
-            Sortieren nach: {sort.column} {sort.asc ? <FiArrowUp /> : <FiArrowDown />}
-          </Dropdown.Toggle>
+        <Dropdown as={ButtonGroup}>
+          <Button variant="outline-secondary" size="sm"><FiFilter /> Sortieren</Button>
+          <Dropdown.Toggle split variant="outline-secondary" size="sm" />
           <Dropdown.Menu>
             {sortOptions.map(opt => (
               <Dropdown.Item
@@ -41,11 +42,12 @@ export default function UnlinkedClients({ scan }) {
                 }
               >
                 {opt.charAt(0).toUpperCase() + opt.slice(1)}{' '}
-                {sort.column === opt && (sort.asc ? <FiArrowUp /> : <FiArrowDown />)}
+                {sort.column === opt && (sort.asc ? '↑' : '↓')}
               </Dropdown.Item>
             ))}
           </Dropdown.Menu>
         </Dropdown>
+
       </div>
 
       {sorted.length === 0 ? (

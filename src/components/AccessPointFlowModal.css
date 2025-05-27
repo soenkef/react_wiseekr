@@ -1,0 +1,63 @@
+.flow-container {
+  width: 100%;
+  max-width: 1100px;
+  padding: 32px;
+  margin: 0 auto;
+  text-align: center;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.ap-box {
+  border: 2px solid #333;
+  padding: 16px 24px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-bottom: 32px;
+  background-color: #f9f9f9;
+}
+
+.clients-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.client-box {
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  background-color: #f0f0f0;
+  padding: 12px;
+  width: 160px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.client-mac {
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.client-vendor {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.client-power {
+  font-size: 0.75rem;
+  color: #777;
+}
+
+.footer-info {
+  margin-top: 24px;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.brand {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}

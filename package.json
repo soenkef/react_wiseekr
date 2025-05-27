@@ -5,6 +5,9 @@
   "dependencies": {
     "bootstrap": "^5.3.5",
     "cra-template": "1.2.0",
+    "dom-to-image": "^2.6.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.503.0",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
@@ -13,6 +16,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.30.0",
     "react-scripts": "^5.0.1",
+    "reactflow": "^11.11.4",
     "serve": "^14.2.4"
   },
   "proxy": "http://192.168.178.148:5000",
