@@ -8,7 +8,7 @@ import './AccessPointFlowModal.css';
 export default function AccessPointFlowModal({ show, onHide, ap }) {
     const containerRef = useRef();
 
-    const handleDownload = async () => {
+    const handleDownloadPDF = async () => {
         if (!containerRef.current) return;
         const canvas = await html2canvas(containerRef.current, { scale: 2 });
         const imgData = canvas.toDataURL('image/png');
@@ -27,6 +27,15 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
         pdf.save(`${ap.essid || ap.bssid}_diagramm.pdf`);
     };
 
+    const handleDownloadPNG = async () => {
+        if (!containerRef.current) return;
+        const canvas = await html2canvas(containerRef.current, { scale: 2 });
+        const link = document.createElement('a');
+        link.download = `${ap.essid || ap.bssid}_diagramm.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+
     return (
         <Modal show={show} onHide={onHide} size="xl" centered>
             <Modal.Header closeButton>
@@ -37,12 +46,13 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
                     <div className="access-point-box">
                         <div className="ap-title">{ap.essid || '<Hidden>'}</div>
                         <div className="ap-details">
-                            <div><strong>BSSID:</strong> {ap.bssid}</div>
-                            <div><strong>Vendor:</strong> {ap.vendor || '–'}</div>
-                            <div><strong>Channel:</strong> {ap.channel} | <strong>Power:</strong> {ap.power} dBm</div>
+                            <div><strong>BSSID:</strong> {ap.bssid}&nbsp;|&nbsp;
+                            <strong>Vendor:</strong> {ap.vendor || '–'}</div>
                             <div className="ap-stats-row">
-                                <span><strong>Privacy:</strong> {ap.privacy || '–'}</span>&nbsp;|&nbsp;
-                                <span><strong>Clients:</strong> {ap.clients?.length ?? 0}</span>
+                                <span><strong>Channel:</strong> {ap.channel}&nbsp;|&nbsp;
+                                <strong>Power:</strong> {ap.power} dBm&nbsp;|&nbsp;
+                                <strong>Privacy:</strong> {ap.privacy || '–'}&nbsp;|&nbsp;
+                                <strong>Clients:</strong> {ap.clients?.length ?? 0}</span>
                             </div>
                             {ap.cracked_password && (
                                 <div className="ap-stats-row">
@@ -65,8 +75,10 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
                     </div>
 
                     <div className="footer">
-                        <div className="timestamp">
-                            Scan-Zeit: {ap.last_seen ? new Date(ap.last_seen).toLocaleString(undefined, { timeZone: 'UTC' }) : '–'}
+                        <div className="footer-meta">
+                            <div><strong>Scan-Zeit:</strong> {ap.last_seen ? new Date(ap.last_seen).toLocaleString(undefined, { timeZone: 'UTC' }) : '–'}</div>
+                            <div><strong>Beschreibung:</strong> {ap.description || '–'}</div>
+                            <div><strong>Ort:</strong> {ap.location || '–'}</div>
                         </div>
                         <div className="branding">WISEEKR</div>
                     </div>
@@ -74,7 +86,8 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={onHide}>Schließen</Button>
-                <Button variant="primary" onClick={handleDownload}>Als PDF herunterladen</Button>
+                <Button variant="outline-primary" onClick={handleDownloadPNG}>Als PNG herunterladen</Button>
+                <Button variant="primary" onClick={handleDownloadPDF}>Als PDF herunterladen</Button>
             </Modal.Footer>
         </Modal>
     );

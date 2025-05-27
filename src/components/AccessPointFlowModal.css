@@ -87,8 +87,26 @@
   padding-top: 10px;
 }
 
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 30px;
+  padding-top: 10px;
+  border-top: 1px solid #ccc;
+  font-size: 12px;
+}
+
+.footer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
 .branding {
   font-weight: bold;
-  font-size: 1rem;
-  color: #007bff;
+  font-size: 18px;
+  color: #333;
+  align-self: flex-end;
 }
