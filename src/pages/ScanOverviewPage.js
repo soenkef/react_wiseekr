@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import Table from 'react-bootstrap/Table';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
 import Body from '../components/Body';
-import TimeAgo from '../components/TimeAgo';
-import { useNavigate } from 'react-router-dom';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import ProgressBar from 'react-bootstrap/ProgressBar';
+import { useNavigate } from 'react-router-dom';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
-import { FiDownload, FiTrash, FiEdit } from 'react-icons/fi';
 import { handleDownloadAll } from '../utils/download';
-import ButtonGroup from 'react-bootstrap/ButtonGroup';
+
+// Neue Komponente importieren
+import ScanOverview from '../components/ScanOverview';
 
 export default function ScanOverviewPage() {
   const [search, setSearch] = useState('');
@@ -42,16 +41,14 @@ export default function ScanOverviewPage() {
   const [editingScan, setEditingScan] = useState(null);
   const [editValues, setEditValues] = useState({ description: '', location: '' });
 
-  // --- NEU: Sort-State ---
+  // Sort-State
   const [sortConfig, setSortConfig] = useState({ field: 'created_at', asc: false });
-
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
     if (response.ok) {
       setScans(response.body);
-    }
-    else {
+    } else {
       flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
     }
   }, [api, flash]);
@@ -71,7 +68,7 @@ export default function ScanOverviewPage() {
     return () => clearInterval(id);
   }, [scanStart, scanDuration]);
 
-  const handleDeleteClick = (id) => {
+  const handleDeleteClick = id => {
     setScanToDelete(id);
     setShowDeleteModal(true);
   };
@@ -104,7 +101,7 @@ export default function ScanOverviewPage() {
     setImporting(false);
   };
 
-  const handleNavigate = (id) => {
+  const handleNavigate = id => {
     navigate(`/scan/${id}`);
   };
 
@@ -122,20 +119,17 @@ export default function ScanOverviewPage() {
       const response = await api.post('/scan/start', payload);
 
       if (!response.ok) {
-        // falls schon ein Scan läuft, bekommt ihr 400 + { error: "Ein Scan läuft bereits…" }
         if (response.status === 400) {
           flash(response.body.error, 'warning');
         } else {
           flash(response.body.error || 'Scan fehlgeschlagen.', 'danger');
         }
-        // abbrechen und Fortschritts-UI zurücksetzen
         setImporting(false);
         setScanStart(null);
         setProgress(0);
         return;
       }
 
-      // on success
       const { output } = response.body;
       setScanOutput(output || 'Scan abgeschlossen.');
       flash('Scan erfolgreich', 'success');
@@ -153,29 +147,24 @@ export default function ScanOverviewPage() {
     }
   };
 
-  // Öffnet den Edit-Modal und füllt die Felder
   const openEditModal = scan => {
     setEditingScan(scan);
     setEditValues({ description: scan.description || '', location: scan.location || '' });
     setShowEditModal(true);
   };
 
-  // Sendet die Änderungen ans Backend
   const submitEdit = async () => {
     const resp = await api.put(`/scans/${editingScan.id}`, editValues);
     if (resp.ok) {
       flash('Scan gespeichert', 'success');
-      // in-state updaten, damit Tabelle sofort reflektiert
-      setScans(scans.map(s =>
-        s.id === editingScan.id ? { ...s, ...resp.body } : s
-      ));
+      setScans(scans.map(s => (s.id === editingScan.id ? { ...s, ...resp.body } : s)));
       setShowEditModal(false);
     } else {
       flash(resp.body?.error || 'Speichern fehlgeschlagen', 'danger');
     }
   };
 
-  // --- Filter + Sort ---
+  // Filter + Sort
   const filtered = scans.filter(scan => {
     const q = search.toLowerCase();
     return (
@@ -186,17 +175,15 @@ export default function ScanOverviewPage() {
       scan.access_points_count?.toString().includes(q)
     );
   });
+
   const sortedScans = useMemo(() => {
     const list = [...filtered];
     const { field, asc } = sortConfig;
     list.sort((a, b) => {
       let va = a[field], vb = b[field];
-      // Datum parsen
       if (field === 'created_at') {
-        va = new Date(a.created_at).getTime();
-        vb = new Date(b.created_at).getTime();
+        va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime();
       }
-      // Strings case-insensitive
       if (typeof va === 'string') va = va.toLowerCase();
       if (typeof vb === 'string') vb = vb.toLowerCase();
       if (va < vb) return asc ? -1 : 1;
@@ -206,12 +193,9 @@ export default function ScanOverviewPage() {
     return list;
   }, [filtered, sortConfig]);
 
-
   const requestSort = field => {
     setSortConfig(c =>
-      c.field === field
-        ? { field, asc: !c.asc }
-        : { field, asc: true }
+      c.field === field ? { field, asc: !c.asc } : { field, asc: true }
     );
   };
 
@@ -219,8 +203,6 @@ export default function ScanOverviewPage() {
     if (sortConfig.field !== field) return '';
     return sortConfig.asc ? ' ↑' : ' ↓';
   };
-
-
 
   return (
     <Body>
@@ -257,97 +239,18 @@ export default function ScanOverviewPage() {
         </div>
       </div>
 
-      <Form.Control
-        type="search"
-        placeholder="Suche nach Scan, Ort, Zeit... - aktuell deaktiviert!"
-        className="mb-3"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
+            {/* Scan-Übersicht als Komponente */}
+      <ScanOverview
+        scans={sortedScans}
+        search={search}
+        onSearchChange={e => setSearch(e.target.value)}
+        requestSort={requestSort}
+        headerArrow={headerArrow}
+        onNavigate={handleNavigate}
+        onDelete={handleDeleteClick}
+        onEdit={openEditModal}
+        onDownload={s => handleDownloadAll(s, api.base_url, flash)}
       />
-
-      <Table striped hover responsive className="align-middle">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('created_at')} style={{ cursor: 'pointer' }}>
-              Erstellt am{headerArrow('created_at')}
-            </th>
-            <th onClick={() => requestSort('description')} style={{ cursor: 'pointer' }}>
-              Beschreibung{headerArrow('description')}
-            </th>
-            <th onClick={() => requestSort('location')} style={{ cursor: 'pointer' }}>
-              Ort{headerArrow('location')}
-            </th>
-            <th className="text-end">Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedScans.map(s => (
-            <tr key={s.id}
-              onClick={e => !e.target.closest('button') && handleNavigate(s.id)}
-              style={{ cursor: 'pointer' }}>
-              <td>
-                {s.created_at
-                  ? new Date(s.created_at).toLocaleString('de-DE', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                  })
-                  : '–'}
-                <br />
-                <small className="text-muted">
-                  (<TimeAgo isoDate={s.created_at} />)
-                </small>
-              </td>
-              <td>
-                {s.description || <em>keine Beschreibung</em>}
-                <br />
-                <small className="text-muted">
-                  ({s.access_points_count} APs)
-                </small>
-              </td>
-              <td>{s.location || <em>kein Ort</em>}</td>
-              <td className="text-end">
-                <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 flex-wrap justify-content-end">
-                  {s.filename ? (
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      className="ap-action-btn"
-                      onClick={e => { e.stopPropagation(); handleDownloadAll(s, api.base_url, flash); }}
-                    >
-                      <FiDownload />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      className="ap-action-btn"
-                      disabled
-                    >
-                      –
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={e => { e.stopPropagation(); openEditModal(s); }}
-                    title="Beschreibung/Ort bearbeiten"
-                  >
-                    <FiEdit />
-                  </Button>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    className="ap-action-btn"
-                    onClick={e => { e.stopPropagation(); handleDeleteClick(s.id); }}
-                  >
-                    <FiTrash />
-                  </Button>
-                </ButtonGroup>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
 
       {/* Delete Confirmation */}
       <Modal show={showDeleteModal} onHide={cancelDelete} centered>
