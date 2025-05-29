@@ -6,6 +6,7 @@ import Body from '../components/Body';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import ProgressBar from 'react-bootstrap/ProgressBar';
+import Spinner from 'react-bootstrap/Spinner';
 import { useNavigate } from 'react-router-dom';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
@@ -55,11 +56,16 @@ export default function ScanOverviewPage() {
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
     if (response.ok) {
-      setScans(response.body);
+      // dedupe by id
+      const unique = Array.from(
+        new Map(response.body.map(scan => [scan.id, scan])).values()
+      );
+      setScans(unique);
     } else {
       flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
     }
   }, [api, flash]);
+
 
   useEffect(() => {
     loadScans();
@@ -157,11 +163,9 @@ export default function ScanOverviewPage() {
       setScanStart(null);
       setProgress(100);
     }
-  }, [api, flash, loadScans, newScan, currentScanId]);
+  }, [api, flash, loadScans, newScan]);
 
   // loop logic
-
-
 
   // Loop starten / stoppen
   const startLoop = () => {
@@ -170,7 +174,7 @@ export default function ScanOverviewPage() {
 
     let first = true;
     const loop = async () => {
-      const dur = 90; // fix 90s pro Loop
+      const dur = 10; // fix 90s pro Loop
       await executeScan(dur, first);
       first = false;
       if (loopingRef.current) loop();
@@ -181,7 +185,7 @@ export default function ScanOverviewPage() {
     loopingRef.current = false;
     setScanStart(null); // hide progress bar
     setProgress(0);
-    flash('Loop-Scan gestoppt', 'info');
+    flash('Scan wird beendet – das kann bis zu 90 Sekunden dauern.', 'warning');
   };
 
   // handle new scan submit
@@ -278,22 +282,28 @@ export default function ScanOverviewPage() {
             )}
           </div>
 
-          {/* Progressbar */}
+          {/* Progress / Spinner */}
           {scanStart !== null && (
-            <>
-              <div className="w-100 d-block d-sm-none mt-2">
-                <small>
-                  Scan läuft ({infinite && loopingRef.current ? '∞ Loop, 90s' : `${scanDuration}s`})
-                </small>
-                <ProgressBar animated striped now={progress} label={`${Math.round(progress)} %`} />
-              </div>
-              <div className="d-none d-sm-block text-center ms-2" style={{ minWidth: 160 }}>
-                <small>
-                  Scan läuft ({infinite && loopingRef.current ? '∞ Loop, 90s' : `${scanDuration}s`})
-                </small>
-                <ProgressBar animated striped now={progress} label={`${Math.round(progress)} %`} />
-              </div>
-            </>
+            <div className="mb-3 text-center">
+              {infinite && loopingRef.current ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span>Scan läuft (∞ Loop)</span>
+                </>
+              ) : (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span>Scan läuft ({scanDuration}s)</span>
+                  <ProgressBar
+                    animated
+                    striped
+                    now={progress}
+                    label={`${Math.round(progress)} %`}
+                    className="mt-2"
+                  />
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -366,16 +376,17 @@ export default function ScanOverviewPage() {
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>
-                Dauer ({infinite ? '∞ = 90 s/Loop' : `${newScan.duration} Sekunden`})
+                Dauer ({infinite ? '∞' : `${newScan.duration} Sekunden`})
               </Form.Label>
-              <RangeSlider
-                value={infinite ? 90 : newScan.duration}
-                onChange={e => setNewScan(v => ({ ...v, duration: parseInt(e.target.value) }))}
-                min={10} max={600} step={10}
-                disabled={infinite}
-                tooltip="off"
-                className="mb-2"
-              />
+              {!infinite && (
+                <RangeSlider
+                  value={newScan.duration}
+                  onChange={e => setNewScan(v => ({ ...v, duration: parseInt(e.target.value) }))}
+                  min={10} max={600} step={10}
+                  tooltip="off"
+                  className="mb-2"
+                />
+              )}
               <Form.Check
                 type="switch"
                 id="switch-infinite"

@@ -137,17 +137,6 @@ export default function AccessPoint({
             </Button>
 
             <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={e => {
-                e.stopPropagation();
-                toggleOpen(ap.bssid);
-              }}
-            >
-              {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
-            </Button>
-
-            <Button
               variant="outline-secondary"
               size="sm"
               title="Client-Graph anzeigen"
@@ -157,6 +146,17 @@ export default function AccessPoint({
               }}
             >
               <FiBarChart2 />
+            </Button>
+
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={e => {
+                e.stopPropagation();
+                toggleOpen(ap.bssid);
+              }}
+            >
+              {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
             </Button>
           </ButtonGroup>
 
