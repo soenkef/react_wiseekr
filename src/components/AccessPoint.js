@@ -43,7 +43,7 @@ export default function AccessPoint({
   scanMeta
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
-  const clientCount = ap.clients.length;
+  const clientCount = new Set(ap.clients.map(c => c.mac)).size;
 
   const handshakeCount = ap.clients.reduce((count, c) => {
     const key = `${ap.bssid}|${c.mac}`;

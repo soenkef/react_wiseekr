@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
@@ -11,7 +11,7 @@ import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { handleDownloadAll } from '../utils/download';
-import ZigbeeScanOverview from '../components/ZigbeeScanOverview';
+//import ZigbeeScanOverview from '../components/ZigbeeScanOverview';
 
 
 // Neue Komponente importieren
@@ -33,11 +33,16 @@ export default function ScanOverviewPage() {
   const flash = useFlash();
   const api = useApi();
 
+  // Loop state
+  const [currentScanId, setCurrentScanId] = useState(null);
+  const scanIdRef = useRef(null);
+  const loopingRef = useRef(false);
+
   // für die Fortschrittsanzeige
   const [progress, setProgress] = useState(0);
   const [scanStart, setScanStart] = useState(null);
   const [scanDuration, setScanDuration] = useState(0);
-  const [enableZigbee, setEnableZigbee] = useState(false);
+  // const [enableZigbee, setEnableZigbee] = useState(false);
 
   // fürs Editieren von Scans
   const [showEditModal, setShowEditModal] = useState(false);
@@ -46,8 +51,6 @@ export default function ScanOverviewPage() {
 
   // Sort-State
   const [sortConfig, setSortConfig] = useState({ field: 'created_at', asc: false });
-
-
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
@@ -110,45 +113,84 @@ export default function ScanOverviewPage() {
     navigate(`/scan/${id}`);
   };
 
-  const handleNewScanSubmit = async () => {
-    const duration = infinite ? 600 : newScan.duration;
+  // Einzel-Scan oder Append
+  const executeScan = useCallback(async (duration, isFirst) => {
     setScanDuration(duration);
     setScanStart(Date.now());
     setProgress(0);
-    setShowNewScanModal(false);
-    flash('Scan wurde gestartet. Bitte habe etwas Geduld.', 'success');
     setImporting(true);
 
     try {
-      const payload = { duration, description: newScan.description, location: newScan.location };
-      const response = await api.post('/scan/start', payload);
+      let resp;
+      if (isFirst) {
+        // erster Aufruf: lege neuen Scan an
+        resp = await api.post('/scan/start', { duration, description: newScan.description, location: newScan.location });
 
-      if (!response.ok) {
-        if (response.status === 400) {
-          flash(response.body.error, 'warning');
-        } else {
-          flash(response.body.error || 'Scan fehlgeschlagen.', 'danger');
+        if (resp.ok) {
+          const id = resp.body.scan_id;
+          setCurrentScanId(id);
+          scanIdRef.current = id;
         }
-        setImporting(false);
-        setScanStart(null);
-        setProgress(0);
-        return;
+      } else {
+        // alle weiteren: hänge an bestehenden Scan dran
+        resp = await api.post('/scan/append', {
+          scan_id: scanIdRef.current,
+          duration,
+        });
       }
+      if (!resp.ok) {
+        flash(resp.body?.error || 'Scan fehlgeschlagen', 'danger');
+        loopingRef.current = false;
+        setCurrentScanId(null);
+        scanIdRef.current = null;
 
-      const { output } = response.body;
-      setScanOutput(output || 'Scan abgeschlossen.');
-      flash('Scan erfolgreich', 'success');
-      await loadScans();
-
+      } else {
+        await loadScans();
+      }
     } catch {
-      flash('Netzwerkfehler beim Starten des Scans.', 'danger');
-      setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
+      flash('Netzwerkfehler beim Scan', 'danger');
+      loopingRef.current = false;
+      setCurrentScanId(null);
+      scanIdRef.current = null;
     } finally {
       setImporting(false);
       setScanStart(null);
       setProgress(100);
-      setNewScan({ description: '', location: '', duration });
-      setInfinite(false);
+    }
+  }, [api, flash, loadScans, newScan, currentScanId]);
+
+  // loop logic
+
+
+
+  // Loop starten / stoppen
+  const startLoop = () => {
+    loopingRef.current = true;
+    setShowNewScanModal(false);
+
+    let first = true;
+    const loop = async () => {
+      const dur = 90; // fix 90s pro Loop
+      await executeScan(dur, first);
+      first = false;
+      if (loopingRef.current) loop();
+    };
+    loop();
+  };
+  const stopLoop = () => {
+    loopingRef.current = false;
+    setScanStart(null); // hide progress bar
+    setProgress(0);
+    flash('Loop-Scan gestoppt', 'info');
+  };
+
+  // handle new scan submit
+  const handleNewScanSubmit = () => {
+    if (infinite) {
+      startLoop();
+    } else {
+      setShowNewScanModal(false);
+      executeScan(newScan.duration, true);
     }
   };
 
@@ -221,23 +263,35 @@ export default function ScanOverviewPage() {
                 Alle Daten löschen
               </Button>
             )}
-            <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
-              Scan starten
-            </Button>
+            {infinite && loopingRef.current ? (
+              <Button
+                variant="warning"
+                onClick={stopLoop}
+                disabled={!loopingRef.current} // ← nur deaktivieren, wenn nicht im Loop
+              >
+                Stop ∞
+              </Button>
+            ) : (
+              <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
+                Scan starten
+              </Button>
+            )}
           </div>
 
-          {/* Progressbar: auf XS immer volle Breite unter den Buttons, ab SM ganz normal links daneben */}
+          {/* Progressbar */}
           {scanStart !== null && (
             <>
-              {/* mobile-only */}
               <div className="w-100 d-block d-sm-none mt-2">
-                <small>Scan läuft</small>
-                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
+                <small>
+                  Scan läuft ({infinite && loopingRef.current ? '∞ Loop, 90s' : `${scanDuration}s`})
+                </small>
+                <ProgressBar animated striped now={progress} label={`${Math.round(progress)} %`} />
               </div>
-              {/* desktop-only */}
               <div className="d-none d-sm-block text-center ms-2" style={{ minWidth: 160 }}>
-                <small>Scan läuft</small>
-                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
+                <small>
+                  Scan läuft ({infinite && loopingRef.current ? '∞ Loop, 90s' : `${scanDuration}s`})
+                </small>
+                <ProgressBar animated striped now={progress} label={`${Math.round(progress)} %`} />
               </div>
             </>
           )}
@@ -289,7 +343,7 @@ export default function ScanOverviewPage() {
         </Modal.Footer>
       </Modal>
 
-      {/* New Scan Modal with switches */}
+      {/* New Scan Modal */}
       <Modal show={showNewScanModal} onHide={() => setShowNewScanModal(false)} centered>
         <Modal.Header closeButton><Modal.Title>Neuen Scan starten</Modal.Title></Modal.Header>
         <Modal.Body>
@@ -311,9 +365,11 @@ export default function ScanOverviewPage() {
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Dauer ({infinite ? '∞ unendlich' : `${newScan.duration} Sekunden`})</Form.Label>
+              <Form.Label>
+                Dauer ({infinite ? '∞ = 90 s/Loop' : `${newScan.duration} Sekunden`})
+              </Form.Label>
               <RangeSlider
-                value={infinite ? 600 : newScan.duration}
+                value={infinite ? 90 : newScan.duration}
                 onChange={e => setNewScan(v => ({ ...v, duration: parseInt(e.target.value) }))}
                 min={10} max={600} step={10}
                 disabled={infinite}
@@ -323,24 +379,10 @@ export default function ScanOverviewPage() {
               <Form.Check
                 type="switch"
                 id="switch-infinite"
-                label="Unendlich"
+                label="Unendlich (Loop)"
                 checked={infinite}
                 onChange={e => setInfinite(e.target.checked)}
               />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="switch"
-                id="switch-zigbee"
-                label="Zigbee-Scan"
-                checked={enableZigbee}
-                onChange={e => setEnableZigbee(e.target.checked)}
-              />
-              {enableZigbee && (
-                <Form.Text className="text-muted">
-                  Für Zigbee-Scanning empfiehlt sich eine Dauer von mindestens 2 Minuten.
-                </Form.Text>
-              )}
             </Form.Group>
           </Form>
         </Modal.Body>
