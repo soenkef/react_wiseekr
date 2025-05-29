@@ -12,8 +12,6 @@ import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { handleDownloadAll } from '../utils/download';
-//import ZigbeeScanOverview from '../components/ZigbeeScanOverview';
-
 
 // Neue Komponente importieren
 import ScanOverview from '../components/ScanOverview';
@@ -26,16 +24,16 @@ export default function ScanOverviewPage() {
   const [showNewScanModal, setShowNewScanModal] = useState(false);
   const [infinite, setInfinite] = useState(false);
   const [newScan, setNewScan] = useState({ description: '', location: '', duration: 30 });
-  const [scanOutput, setScanOutput] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const { user } = useUser();
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
+  const [scanOutput, setScanOutput] = useState('');
+
 
   // Loop state
-  const [currentScanId, setCurrentScanId] = useState(null);
   const scanIdRef = useRef(null);
   const loopingRef = useRef(false);
 
@@ -43,7 +41,6 @@ export default function ScanOverviewPage() {
   const [progress, setProgress] = useState(0);
   const [scanStart, setScanStart] = useState(null);
   const [scanDuration, setScanDuration] = useState(0);
-  // const [enableZigbee, setEnableZigbee] = useState(false);
 
   // fürs Editieren von Scans
   const [showEditModal, setShowEditModal] = useState(false);
@@ -56,7 +53,7 @@ export default function ScanOverviewPage() {
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
     if (response.ok) {
-      // dedupe by id
+      // Duplikate nach ID entfernen
       const unique = Array.from(
         new Map(response.body.map(scan => [scan.id, scan])).values()
       );
@@ -65,7 +62,6 @@ export default function ScanOverviewPage() {
       flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
     }
   }, [api, flash]);
-
 
   useEffect(() => {
     loadScans();
@@ -130,12 +126,17 @@ export default function ScanOverviewPage() {
       let resp;
       if (isFirst) {
         // erster Aufruf: lege neuen Scan an
-        resp = await api.post('/scan/start', { duration, description: newScan.description, location: newScan.location });
+        resp = await api.post('/scan/start', {
+          duration,
+          description: newScan.description,
+          location: newScan.location,
+        });
 
         if (resp.ok) {
           const id = resp.body.scan_id;
-          setCurrentScanId(id);
           scanIdRef.current = id;
+          // sofort zur Detailseite weiterleiten
+          navigate(`/scan/${id}`);
         }
       } else {
         // alle weiteren: hänge an bestehenden Scan dran
@@ -144,28 +145,24 @@ export default function ScanOverviewPage() {
           duration,
         });
       }
+
       if (!resp.ok) {
         flash(resp.body?.error || 'Scan fehlgeschlagen', 'danger');
         loopingRef.current = false;
-        setCurrentScanId(null);
         scanIdRef.current = null;
-
       } else {
         await loadScans();
       }
     } catch {
       flash('Netzwerkfehler beim Scan', 'danger');
       loopingRef.current = false;
-      setCurrentScanId(null);
       scanIdRef.current = null;
     } finally {
       setImporting(false);
       setScanStart(null);
       setProgress(100);
     }
-  }, [api, flash, loadScans, newScan]);
-
-  // loop logic
+  }, [api, flash, loadScans, newScan, navigate]);
 
   // Loop starten / stoppen
   const startLoop = () => {
@@ -174,7 +171,7 @@ export default function ScanOverviewPage() {
 
     let first = true;
     const loop = async () => {
-      const dur = 10; // fix 90s pro Loop
+      const dur = 90; // 90 s pro Loop
       await executeScan(dur, first);
       first = false;
       if (loopingRef.current) loop();
@@ -183,12 +180,11 @@ export default function ScanOverviewPage() {
   };
   const stopLoop = () => {
     loopingRef.current = false;
-    setScanStart(null); // hide progress bar
+    setScanStart(null); // Progressbar ausblenden
     setProgress(0);
     flash('Scan wird beendet – das kann bis zu 90 Sekunden dauern.', 'warning');
   };
 
-  // handle new scan submit
   const handleNewScanSubmit = () => {
     if (infinite) {
       startLoop();
@@ -203,7 +199,6 @@ export default function ScanOverviewPage() {
     setEditValues({ description: scan.description || '', location: scan.location || '' });
     setShowEditModal(true);
   };
-
   const submitEdit = async () => {
     const resp = await api.put(`/scans/${editingScan.id}`, editValues);
     if (resp.ok) {
@@ -226,14 +221,14 @@ export default function ScanOverviewPage() {
       scan.access_points_count?.toString().includes(q)
     );
   });
-
   const sortedScans = useMemo(() => {
     const list = [...filtered];
     const { field, asc } = sortConfig;
     list.sort((a, b) => {
       let va = a[field], vb = b[field];
       if (field === 'created_at') {
-        va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime();
+        va = new Date(a.created_at).getTime();
+        vb = new Date(b.created_at).getTime();
       }
       if (typeof va === 'string') va = va.toLowerCase();
       if (typeof vb === 'string') vb = vb.toLowerCase();
@@ -249,11 +244,8 @@ export default function ScanOverviewPage() {
       c.field === field ? { field, asc: !c.asc } : { field, asc: true }
     );
   };
+  const headerArrow = field => (sortConfig.field !== field ? '' : (sortConfig.asc ? ' ↑' : ' ↓'));
 
-  const headerArrow = field => {
-    if (sortConfig.field !== field) return '';
-    return sortConfig.asc ? ' ↑' : ' ↓';
-  };
 
   return (
     <Body>

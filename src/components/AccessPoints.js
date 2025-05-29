@@ -188,12 +188,34 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const sortedAPs = useMemo(() => {
     const list = [...filteredAPs];
     const { field, asc } = apSort;
+
     return list.sort((a, b) => {
-      let av = field === 'last_seen' ? new Date(a.last_seen || 0).getTime() : field === 'clients' ? a.clients.length : a[field] ?? '';
-      let bv = field === 'last_seen' ? new Date(b.last_seen || 0).getTime() : field === 'clients' ? b.clients.length : b[field] ?? '';
-      return (av < bv ? -1 : av > bv ? 1 : 0) * (asc ? 1 : -1);
+      let av, bv;
+
+      if (field === 'power') {
+        // Wenn power === -1, behandeln wir es als schlechtestmöglichen Wert
+        const normalizePower = v => (v === -1 || v == null ? Number.NEGATIVE_INFINITY : v);
+        av = normalizePower(a.power);
+        bv = normalizePower(b.power);
+      } else if (field === 'last_seen') {
+        av = new Date(a.last_seen || 0).getTime();
+        bv = new Date(b.last_seen || 0).getTime();
+      } else if (field === 'clients') {
+        av = a.clients.length;
+        bv = b.clients.length;
+      } else {
+        av = a[field] ?? '';
+        bv = b[field] ?? '';
+        if (typeof av === 'string') av = av.toLowerCase();
+        if (typeof bv === 'string') bv = bv.toLowerCase();
+      }
+
+      if (av < bv) return -1 * (asc ? 1 : -1);
+      if (av > bv) return 1 * (asc ? 1 : -1);
+      return 0;
     });
   }, [filteredAPs, apSort]);
+
 
   const openDeauth = (ap, client = null) => {
     setSelectedTarget({ ap, client });
