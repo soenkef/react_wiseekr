@@ -11,6 +11,8 @@ import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { handleDownloadAll } from '../utils/download';
+import ZigbeeScanOverview from '../components/ZigbeeScanOverview';
+
 
 // Neue Komponente importieren
 import ScanOverview from '../components/ScanOverview';
@@ -35,6 +37,7 @@ export default function ScanOverviewPage() {
   const [progress, setProgress] = useState(0);
   const [scanStart, setScanStart] = useState(null);
   const [scanDuration, setScanDuration] = useState(0);
+  const [enableZigbee, setEnableZigbee] = useState(false);
 
   // fürs Editieren von Scans
   const [showEditModal, setShowEditModal] = useState(false);
@@ -43,6 +46,8 @@ export default function ScanOverviewPage() {
 
   // Sort-State
   const [sortConfig, setSortConfig] = useState({ field: 'created_at', asc: false });
+
+
 
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
@@ -239,7 +244,7 @@ export default function ScanOverviewPage() {
         </div>
       </div>
 
-            {/* Scan-Übersicht als Komponente */}
+      {/* Scan-Übersicht als Komponente */}
       <ScanOverview
         scans={sortedScans}
         search={search}
@@ -251,6 +256,10 @@ export default function ScanOverviewPage() {
         onEdit={openEditModal}
         onDownload={s => handleDownloadAll(s, api.base_url, flash)}
       />
+
+      {/* Zigbee-Übersicht 
+      <ZigbeeScanOverview />
+      */}
 
       {/* Delete Confirmation */}
       <Modal show={showDeleteModal} onHide={cancelDelete} centered>
@@ -280,11 +289,9 @@ export default function ScanOverviewPage() {
         </Modal.Footer>
       </Modal>
 
-      {/* New Scan Modal */}
+      {/* New Scan Modal with switches */}
       <Modal show={showNewScanModal} onHide={() => setShowNewScanModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Neuen Scan starten</Modal.Title>
-        </Modal.Header>
+        <Modal.Header closeButton><Modal.Title>Neuen Scan starten</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
@@ -292,7 +299,7 @@ export default function ScanOverviewPage() {
               <Form.Control
                 type="text"
                 value={newScan.description}
-                onChange={e => setNewScan({ ...newScan, description: e.target.value })}
+                onChange={e => setNewScan(v => ({ ...v, description: e.target.value }))}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -300,30 +307,40 @@ export default function ScanOverviewPage() {
               <Form.Control
                 type="text"
                 value={newScan.location}
-                onChange={e => setNewScan({ ...newScan, location: e.target.value })}
+                onChange={e => setNewScan(v => ({ ...v, location: e.target.value }))}
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>
-                Dauer ({infinite ? '∞ unendlich' : `${newScan.duration} Sekunden`})
-              </Form.Label>
+              <Form.Label>Dauer ({infinite ? '∞ unendlich' : `${newScan.duration} Sekunden`})</Form.Label>
               <RangeSlider
                 value={infinite ? 600 : newScan.duration}
-                onChange={e => setNewScan({ ...newScan, duration: parseInt(e.target.value) })}
+                onChange={e => setNewScan(v => ({ ...v, duration: parseInt(e.target.value) }))}
                 min={10} max={600} step={10}
                 disabled={infinite}
                 tooltip="off"
                 className="mb-2"
               />
               <Form.Check
-                type="checkbox"
+                type="switch"
+                id="switch-infinite"
                 label="Unendlich"
                 checked={infinite}
                 onChange={e => setInfinite(e.target.checked)}
               />
-              <Form.Text className="text-muted">
-                Wähle zwischen 10 Sek. und 10 Min. oder unendlich.
-              </Form.Text>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="switch"
+                id="switch-zigbee"
+                label="Zigbee-Scan"
+                checked={enableZigbee}
+                onChange={e => setEnableZigbee(e.target.checked)}
+              />
+              {enableZigbee && (
+                <Form.Text className="text-muted">
+                  Für Zigbee-Scanning empfiehlt sich eine Dauer von mindestens 2 Minuten.
+                </Form.Text>
+              )}
             </Form.Group>
           </Form>
         </Modal.Body>

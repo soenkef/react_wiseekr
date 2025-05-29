@@ -458,3 +458,24 @@ python3 oui_sum.py
 ### further parts of this oui stuff
 /api/utils/camera.py
 /api/utils/oui.py
+
+# add wordlist for passwort-cracking to /data of api
+
+# install zigbee-stick (mac)
+git clone https://github.com/dashesy/cc-tool.git
+cd cc-tool
+
+# Schritt 1: bootstrap
+CPPFLAGS="-I/opt/homebrew/include" \
+LDFLAGS="-I/opt/homebrew/include" \
+  ./bootstrap
+
+# Schritt 2: configure
+CPPFLAGS="-I/opt/homebrew/include" \
+CXXFLAGS="-std=c++0x" \
+LDFLAGS="-L/opt/homebrew/lib" \
+LIBUSB_CFLAGS="-I/opt/homebrew/include" \
+  ./configure
+
+# Schritt 3: kompilieren
+make
