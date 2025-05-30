@@ -218,15 +218,21 @@ export default function AccessPoint({
         )}
 
 
-        {rescanStartTime !== null && rescanBssid === ap.bssid && rescanProgress < 100 && (
-          <ProgressBar
-            now={rescanProgress}
-            animated
-            striped
-            className="mt-2"
-            style={{ height: '4px', borderRadius: '2px' }}
-          />
-        )}
+        {rescanStartTime !== null &&
+          ap.bssid === rescanBssid &&
+          rescanProgress < 100 && (
+            <>
+              <ProgressBar
+                now={rescanProgress}
+                animated
+                striped
+                className="mt-2"
+                style={{ height: '4px', borderRadius: '2px' }}
+                variant="info"
+              />
+              <div className="text-end small text-muted">Rescan läuft…</div>
+            </>
+          )}
       </Card.Header>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>

@@ -238,6 +238,7 @@ export default function AccessPoints({
   };
 
   const submitRescan = async () => {
+    setRescanBssid(rescanBssid);
     setShowRescanModal(false);
 
     if (rescanOptions.infinite) {
@@ -444,7 +445,10 @@ export default function AccessPoints({
         show={showRescanModal}
         onHide={() => {
           setShowRescanModal(false);
-          setRescanBssid(null); // ← Bugfix: BSSID zurücksetzen!
+          // Nur zurücksetzen, wenn kein Rescan aktiv
+          if (rescanStartTime === null) {
+            setRescanBssid(null);
+          }
         }}
         options={rescanOptions}
         onChangeOptions={setRescanOptions}
