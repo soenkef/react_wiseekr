@@ -31,12 +31,16 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const [deauthBssid, setDeauthBssid] = useState(null);
 
   const [showRescanModal, setShowRescanModal] = useState(false);
-  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 30 });
-  const [rescanBssid, setRescanBssid] = useState(null);
+  const [rescanOptions, setRescanOptions] = useState({
+    description: '',
+    duration: 90,
+    infinite: false
+  }); const [rescanBssid, setRescanBssid] = useState(null);
   const [rescanStartTime, setRescanStartTime] = useState(null);
   const [rescanProgress, setRescanProgress] = useState(0);
   const openRescan = ap => {
     setRescanBssid(ap);
+    setRescanOptions({ description: '', duration: 90, infinite: false });
     setShowRescanModal(true);
   };
 
@@ -229,9 +233,16 @@ export default function AccessPoints({ scan, onRescanComplete }) {
 
   const submitRescan = async () => {
     setShowRescanModal(false);
+
+    if (rescanOptions.infinite) {
+      startLoopScanAp(rescanBssid, rescanOptions.duration || 90);
+      return;
+    }
+
     setRescanStartTime(Date.now());
     setRescanProgress(0);
     flash('Rescan gestartet...', 'warning');
+
     try {
       const resp = await api.post(`/scans/${scanId}/scan_ap`, {
         bssid: rescanBssid,
@@ -247,57 +258,63 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     }
   };
 
-const startLoopScanAp = async (bssid, duration = 90) => {
-  setLoopingAp(bssid);
-  loopingRefAp.current = true;
-  firstLoopRef.current = true; // Setze beim Start
 
-  const loop = async () => {
-    if (!loopingRefAp.current) return;
+  const startLoopScanAp = async (bssid, duration = 90) => {
+    setLoopingAp(bssid);
+    loopingRefAp.current = true;
+    firstLoopRef.current = true; // Setze beim Start
 
-    if (firstLoopRef.current) {
-      flash(`Starte unendlichen AP-Scan für ${bssid}...`, 'danger');
-      firstLoopRef.current = false; // Nur einmal zeigen
-    } else {
-      console.debug(`↻ Wiederhole AP-Scan für ${bssid}`);
-    }
+    const loop = async () => {
+      if (!loopingRefAp.current) return;
 
-    try {
-      const resp = await api.post(`/scans/${scanId}/scan_ap`, {
-        bssid,
-        duration
-      });
-
-      if (resp.ok) {
-        onRescanComplete?.();
+      if (firstLoopRef.current) {
+        flash(`Starte unendlichen AP-Scan für ${bssid}. Bitte lasse diese Seite geöffnet.`, 'danger');
+        firstLoopRef.current = false; // Nur einmal zeigen
       } else {
-        throw new Error(resp.body?.error || 'AP-Scan fehlgeschlagen');
+        console.debug(`↻ Wiederhole AP-Scan für ${bssid}`);
       }
 
-    } catch (err) {
-      flash(err.message, 'danger');
-      loopingRefAp.current = false;
-      setLoopingAp(null);
-      return;
-    }
+      try {
+        const resp = await api.post(`/scans/${scanId}/scan_ap`, {
+          bssid,
+          duration
+        });
 
-    if (loopingRefAp.current) {
-      setTimeout(loop, duration * 1000);
-    }
+        if (resp.ok) {
+          onRescanComplete?.();
+        } else {
+          throw new Error(resp.body?.error || 'AP-Scan fehlgeschlagen');
+        }
+
+      } catch (err) {
+        flash(err.message, 'danger');
+        loopingRefAp.current = false;
+        setLoopingAp(null);
+        return;
+      }
+
+      if (loopingRefAp.current) {
+        setTimeout(loop, duration * 1000);
+      }
+    };
+
+    loop();
   };
-
-  loop();
-};
 
 
 
 const stopLoopScanAp = () => {
   loopingRefAp.current = false;
-  firstLoopRef.current = true; // Sauber zurücksetzen
+  firstLoopRef.current = true;
   setLoopingAp(null);
+
+  setRescanBssid(null);      // 🛠 fix: wieder aktivieren
+  setRescanStartTime(null);
+  setRescanProgress(0);
 
   flash('Scan wird gestoppt – das kann bis zu 90 Sekunden dauern.', 'warning');
 };
+
 
 
 
@@ -461,7 +478,15 @@ const stopLoopScanAp = () => {
         />
       ))}
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />
-      <RescanModal show={showRescanModal} onHide={() => setShowRescanModal(false)} options={rescanOptions} onChangeOptions={setRescanOptions} onSubmit={submitRescan} />
+      <RescanModal
+        show={showRescanModal}
+        onHide={() => setShowRescanModal(false)}
+        options={rescanOptions}
+        onChangeOptions={setRescanOptions}
+        onSubmit={submitRescan}
+        isLooping={loopingAp === rescanBssid}
+        onStopLoop={stopLoopScanAp}
+      />
     </>
   );
 }

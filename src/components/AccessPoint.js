@@ -139,20 +139,18 @@ export default function AccessPoint({
               <FiRefreshCw />
             </Button>
 
-            <Button
-              variant={loopingAp === ap.bssid ? 'warning' : 'outline-success'}
-              size="sm"
-              onClick={e => {
-                e.stopPropagation();
-                if (loopingAp === ap.bssid) {
+            {loopingAp === ap.bssid && (
+              <Button
+                variant="warning"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation();
                   stopLoopScanAp();
-                } else {
-                  startLoopScanAp(ap.bssid);
-                }
-              }}
-            >
-              {loopingAp === ap.bssid ? 'Stop ∞' : '∞ AP'}
-            </Button>
+                }}
+              >
+                Stop ∞
+              </Button>
+            )}
 
             <Button
               variant="outline-secondary"
