@@ -18,30 +18,33 @@ import ResetPage from './pages/ResetPage';
 import ScanOverviewPage from './pages/ScanOverviewPage';
 import ScanDetailPage from './pages/ScanDetailPage';
 import SettingsPage from './pages/SettingsPage';
+import { ScanLoopProvider } from './contexts/ScanLoopProvider';
+
 
 export default function App() {
   return (
     <Container fluid className="App">
-        <BrowserRouter>
-          <FlashProvider>
-            <ApiProvider>
-              <UserProvider>
-                <Header />
-                <Routes>
-                  <Route path="/login" element={
-                    <PublicRoute><LoginPage /></PublicRoute>
-                  } />
-                  <Route path='/register' element={
-                    <PublicRoute><RegistrationPage /></PublicRoute>
-                  } />
-                  <Route path='/reset-request' element={
-                    <PublicRoute><ResetRequestPage /></PublicRoute>
-                  } />
-                  <Route path='/reset' element={
-                    <PublicRoute><ResetPage /></PublicRoute>
-                  } />
-                  <Route path="*" element={
-                    <PrivateRoute>
+      <BrowserRouter>
+        <FlashProvider>
+          <ApiProvider>
+            <UserProvider>
+              <Header />
+              <Routes>
+                <Route path="/login" element={
+                  <PublicRoute><LoginPage /></PublicRoute>
+                } />
+                <Route path='/register' element={
+                  <PublicRoute><RegistrationPage /></PublicRoute>
+                } />
+                <Route path='/reset-request' element={
+                  <PublicRoute><ResetRequestPage /></PublicRoute>
+                } />
+                <Route path='/reset' element={
+                  <PublicRoute><ResetPage /></PublicRoute>
+                } />
+                <Route path="*" element={
+                  <PrivateRoute>
+                    <ScanLoopProvider>
                       <Routes>
                         <Route path="/" element={<ScanOverviewPage />} />
                         <Route path="/explore" element={<ExplorePage />} />
@@ -56,13 +59,15 @@ export default function App() {
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
-                    </PrivateRoute>
-                  } />
-                </Routes>
-              </UserProvider>
-            </ApiProvider>
-          </FlashProvider>
-        </BrowserRouter>
+                    </ScanLoopProvider>
+                  </PrivateRoute>
+
+                } />
+              </Routes>
+            </UserProvider>
+          </ApiProvider>
+        </FlashProvider>
+      </BrowserRouter>
     </Container>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
@@ -12,6 +12,8 @@ import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { handleDownloadAll } from '../utils/download';
+import { useScanLoop } from '../contexts/ScanLoopProvider';
+
 
 // Neue Komponente importieren
 import ScanOverview from '../components/ScanOverview';
@@ -34,8 +36,9 @@ export default function ScanOverviewPage() {
 
 
   // Loop state
-  const scanIdRef = useRef(null);
-  const loopingRef = useRef(false);
+
+  const { loopingRef, scanIdRef } = useScanLoop();
+
 
   // für die Fortschrittsanzeige
   const [progress, setProgress] = useState(0);
@@ -162,27 +165,74 @@ export default function ScanOverviewPage() {
       setScanStart(null);
       setProgress(100);
     }
-  }, [api, flash, loadScans, newScan, navigate]);
+  }, [api, flash, loadScans, newScan, navigate, scanIdRef, loopingRef]);
 
   // Loop starten / stoppen
-  const startLoop = () => {
-    loopingRef.current = true;
+  const startLoop = async () => {
     setShowNewScanModal(false);
+    loopingRef.current = true;
 
-    let first = true;
-    const loop = async () => {
-      const dur = 90; // 90 s pro Loop
-      await executeScan(dur, first);
-      first = false;
-      if (loopingRef.current) loop();
-    };
-    loop();
+    try {
+      // Nur Scan-Datensatz erstellen
+      const createResp = await api.post('/scan/create', {
+        description: newScan.description,
+        location: newScan.location,
+        duration: 0,          // ✅ Bei unendlichem Scan: 0
+        infinite: true        // ✅ optional, falls du das im Backend brauchst
+      });
+
+      if (!createResp.ok) throw new Error(createResp.body?.error || 'Erstellung fehlgeschlagen');
+
+      const id = createResp.body.scan_id;
+      scanIdRef.current = id;
+
+      // ⏩ Sofort weiterleiten
+      navigate(`/scan/${id}`);
+
+      // Danach Loop starten
+      const loop = async () => {
+        const duration = 10;
+
+        try {
+          const appendResp = await api.post('/scan/append', {
+            scan_id: scanIdRef.current,
+            duration,
+          });
+
+          if (!appendResp.ok) {
+            throw new Error(appendResp.body?.error || 'Append fehlgeschlagen');
+          }
+
+          await loadScans();
+        } catch (err) {
+          flash(err.message || 'Fehler im Loop', 'danger');
+          loopingRef.current = false;
+          scanIdRef.current = null;
+          return;
+        }
+
+        if (loopingRef.current) {
+          setTimeout(loop, duration * 1000);
+        }
+      };
+
+      loop();
+
+    } catch (err) {
+      flash(err.message || 'Scanfehler', 'danger');
+      loopingRef.current = false;
+      scanIdRef.current = null;
+    }
   };
+
+
+
   const stopLoop = () => {
     loopingRef.current = false;
-    setScanStart(null); // Progressbar ausblenden
+    scanIdRef.current = null;
+    setScanStart(null);
     setProgress(0);
-    flash('Scan wird beendet – das kann bis zu 90 Sekunden dauern.', 'warning');
+    flash('Scan wird beendet – das kann bis zu 90 Sekunden dauern. Bitte diese Seite geöffnet lassen.', 'warning');
   };
 
   const handleNewScanSubmit = () => {

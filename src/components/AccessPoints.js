@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
@@ -12,7 +12,13 @@ import { useFlash } from '../contexts/FlashProvider';
 import { DeauthModal, RescanModal } from './Modals';
 import AccessPoint from './AccessPoint';
 
-export default function AccessPoints({ scan, onRescanComplete }) {
+export default function AccessPoints({
+  scan,
+  onRescanComplete,
+  loopingAp,
+  startLoopScanAp,
+  stopLoopScanAp
+}) {
   const api = useApi();
   const flash = useFlash();
   const scanId = scan.id;
@@ -44,9 +50,8 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     setShowRescanModal(true);
   };
 
-  const [loopingAp, setLoopingAp] = useState(null); // BSSID im Loop
-  const loopingRefAp = useRef(null); // persistenter Loop-Status
-  const firstLoopRef = useRef(true);
+  const [deauthTargetKey, setDeauthTargetKey] = useState(null); // z. B. 'bssid|mac' oder 'bssid|AP'
+
 
   const [cracking, setCracking] = useState(new Set());
 
@@ -228,6 +233,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const openDeauth = (ap, client = null) => {
     setSelectedTarget({ ap, client });
     setDeauthBssid(ap);
+    setDeauthTargetKey(`${ap}|${client || 'AP'}`); // ✅ DAS FEHLTE
     setShowDeauthModal(true);
   };
 
@@ -259,64 +265,6 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   };
 
 
-  const startLoopScanAp = async (bssid, duration = 90) => {
-    setLoopingAp(bssid);
-    loopingRefAp.current = true;
-    firstLoopRef.current = true; // Setze beim Start
-
-    const loop = async () => {
-      if (!loopingRefAp.current) return;
-
-      if (firstLoopRef.current) {
-        flash(`Starte unendlichen AP-Scan für ${bssid}. Bitte lasse diese Seite geöffnet.`, 'danger');
-        firstLoopRef.current = false; // Nur einmal zeigen
-      } else {
-        console.debug(`↻ Wiederhole AP-Scan für ${bssid}`);
-      }
-
-      try {
-        const resp = await api.post(`/scans/${scanId}/scan_ap`, {
-          bssid,
-          duration
-        });
-
-        if (resp.ok) {
-          onRescanComplete?.();
-        } else {
-          throw new Error(resp.body?.error || 'AP-Scan fehlgeschlagen');
-        }
-
-      } catch (err) {
-        flash(err.message, 'danger');
-        loopingRefAp.current = false;
-        setLoopingAp(null);
-        return;
-      }
-
-      if (loopingRefAp.current) {
-        setTimeout(loop, duration * 1000);
-      }
-    };
-
-    loop();
-  };
-
-
-
-const stopLoopScanAp = () => {
-  loopingRefAp.current = false;
-  firstLoopRef.current = true;
-  setLoopingAp(null);
-
-  setRescanBssid(null);      // 🛠 fix: wieder aktivieren
-  setRescanStartTime(null);
-  setRescanProgress(0);
-
-  flash('Scan wird gestoppt – das kann bis zu 90 Sekunden dauern.', 'warning');
-};
-
-
-
 
   const submitDeauth = async () => {
     const { ap, client } = selectedTarget;
@@ -325,7 +273,7 @@ const stopLoopScanAp = () => {
     if (deauthOptions.infinite) setInfiniteDeauths(prev => new Set(prev).add(key));
     setDeauthStartTime(Date.now());
     setDeauthProgress(0);
-    flash('Deauth startet...', 'warning');
+    flash('Deauth startet. Bitte diese Seite geöffnet lassen', 'warning');
 
     const common = {
       scan_id: scanId,
@@ -340,7 +288,7 @@ const stopLoopScanAp = () => {
     try {
       const resp = await api.post(endpoint, payload);
       if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
-      flash('Deauth erfolgreich gestartet', 'success');
+      flash('Deauth erfolgreich gestartet. Bitte diese Seite geöffnet lassen.', 'success');
       if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
     } catch (err) {
       flash(err.message, 'danger');
@@ -367,6 +315,7 @@ const stopLoopScanAp = () => {
       setDeauthStartTime(null);
       setDeauthBssid(null);
       setDeauthOptions(prev => ({ ...prev, infinite: false }));
+      setDeauthTargetKey(null);
     } else {
       flash(resp.body?.error || 'Stop failed', 'danger');
     }
@@ -393,7 +342,19 @@ const stopLoopScanAp = () => {
 
   const renderDeauthStatus = (ap, client) => {
     const key = `${ap}|${client || 'AP'}`;
-    return activeDeauths[key] ? <Spinner animation="border" size="sm" variant="danger" className="me-1" /> : null;
+    const isInfinite = infiniteDeauths.has(key);
+    const isActive = activeDeauths[key];
+
+    if (isInfinite) {
+      return (
+        <span className="d-flex align-items-center text-danger me-2">
+          <Spinner animation="border" size="sm" />
+          <span className="ms-1 small">∞ Deauth</span>
+        </span>
+      );
+    }
+
+    return isActive ? <Spinner animation="border" size="sm" variant="danger" className="me-1" /> : null;
   };
 
   const renderHandshakeLink = (b, c) => {
@@ -475,6 +436,7 @@ const stopLoopScanAp = () => {
           loopingAp={loopingAp}
           startLoopScanAp={startLoopScanAp}
           stopLoopScanAp={stopLoopScanAp}
+          deauthTargetKey={deauthTargetKey}
         />
       ))}
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />

@@ -5,6 +5,7 @@ import Collapse from 'react-bootstrap/Collapse';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ProgressBar from 'react-bootstrap/ProgressBar';
+import Spinner from 'react-bootstrap/Spinner';
 import {
   FiAlertTriangle,
   FiWifiOff,
@@ -44,6 +45,7 @@ export default function AccessPoint({
   loopingAp,
   startLoopScanAp,
   stopLoopScanAp,
+  deauthTargetKey,
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = new Set(ap.clients.map(c => c.mac)).size;
@@ -178,23 +180,36 @@ export default function AccessPoint({
 
         </div>
 
-        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (
-          <ProgressBar
-            now={deauthProgress}
-            animated
-            striped
-            variant="danger"
-            className="mt-2"
-            style={{ height: '4px', borderRadius: '2px' }}
-            label={`${Math.round(deauthProgress)}%`}
-          />
-        )}
-        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (
-          <div className="text-end small text-muted">Deauth läuft…</div>
-        )}
-        {ap.bssid === deauthBssid && isInfinite && (
-          <div className="text-end small text-muted">Unendlicher Deauth läuft…</div>
-        )}
+        {deauthTargetKey &&
+          infiniteDeauths.has(deauthTargetKey) &&
+          deauthTargetKey.startsWith(`${ap.bssid}|`) && (
+            <div className="d-flex justify-content-end align-items-center gap-2 text-muted small mt-2">
+              <span>Unendlicher Deauth läuft…</span>
+              <Spinner animation="border" size="sm" variant="danger" />
+            </div>
+          )}
+
+
+        {deauthTargetKey &&
+          deauthTargetKey.startsWith(`${ap.bssid}|`) &&
+          !infiniteDeauths.has(deauthTargetKey) &&
+          deauthProgress > 0 &&
+          deauthProgress < 100 && (
+            <>
+              <ProgressBar
+                now={deauthProgress}
+                animated
+                striped
+                variant="danger"
+                className="mt-2"
+                style={{ height: '4px', borderRadius: '2px' }}
+                label={`${Math.round(deauthProgress)}%`}
+              />
+              <div className="text-end small text-muted">Deauth läuft…</div>
+            </>
+          )}
+
+
         {loopingAp === ap.bssid && (
           <div className="text-end small text-muted">Unendlicher AP-Scan läuft…</div>
         )}
