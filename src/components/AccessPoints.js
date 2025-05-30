@@ -442,7 +442,10 @@ export default function AccessPoints({
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />
       <RescanModal
         show={showRescanModal}
-        onHide={() => setShowRescanModal(false)}
+        onHide={() => {
+          setShowRescanModal(false);
+          setRescanBssid(null); // ← Bugfix: BSSID zurücksetzen!
+        }}
         options={rescanOptions}
         onChangeOptions={setRescanOptions}
         onSubmit={submitRescan}

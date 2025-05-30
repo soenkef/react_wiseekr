@@ -33,12 +33,13 @@ export default function ScanHeader({ scan, onDownload, onUpdate }) {
             Scan am{' '}
             {createdDate
               ? createdDate.toLocaleString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
+                //timeZone: 'UTC',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
               : '–'}{' '}
             (<TimeAgo isoDate={createdDate} />)
           </h5>
