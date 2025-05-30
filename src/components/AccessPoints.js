@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
@@ -39,6 +39,10 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     setRescanBssid(ap);
     setShowRescanModal(true);
   };
+
+  const [loopingAp, setLoopingAp] = useState(null); // BSSID im Loop
+  const loopingRefAp = useRef(null); // persistenter Loop-Status
+  const firstLoopRef = useRef(true);
 
   const [cracking, setCracking] = useState(new Set());
 
@@ -243,6 +247,59 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     }
   };
 
+const startLoopScanAp = async (bssid, duration = 90) => {
+  setLoopingAp(bssid);
+  loopingRefAp.current = true;
+  firstLoopRef.current = true; // Setze beim Start
+
+  const loop = async () => {
+    if (!loopingRefAp.current) return;
+
+    if (firstLoopRef.current) {
+      flash(`Starte unendlichen AP-Scan für ${bssid}...`, 'danger');
+      firstLoopRef.current = false; // Nur einmal zeigen
+    } else {
+      console.debug(`↻ Wiederhole AP-Scan für ${bssid}`);
+    }
+
+    try {
+      const resp = await api.post(`/scans/${scanId}/scan_ap`, {
+        bssid,
+        duration
+      });
+
+      if (resp.ok) {
+        onRescanComplete?.();
+      } else {
+        throw new Error(resp.body?.error || 'AP-Scan fehlgeschlagen');
+      }
+
+    } catch (err) {
+      flash(err.message, 'danger');
+      loopingRefAp.current = false;
+      setLoopingAp(null);
+      return;
+    }
+
+    if (loopingRefAp.current) {
+      setTimeout(loop, duration * 1000);
+    }
+  };
+
+  loop();
+};
+
+
+
+const stopLoopScanAp = () => {
+  loopingRefAp.current = false;
+  firstLoopRef.current = true; // Sauber zurücksetzen
+  setLoopingAp(null);
+
+  flash('Scan wird gestoppt – das kann bis zu 90 Sekunden dauern.', 'warning');
+};
+
+
 
   const submitDeauth = async () => {
     const { ap, client } = selectedTarget;
@@ -398,6 +455,9 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           stopDeauth={stopDeauth}
           isCracking={cracking.has(`${ap.bssid}|AP`)}
           scanMeta={{ description: scan.description, location: scan.location }}
+          loopingAp={loopingAp}
+          startLoopScanAp={startLoopScanAp}
+          stopLoopScanAp={stopLoopScanAp}
         />
       ))}
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />

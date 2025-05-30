@@ -40,7 +40,10 @@ export default function AccessPoint({
   stopDeauth,
   renderCrackButton,
   isCracking,
-  scanMeta
+  scanMeta,
+  loopingAp,
+  startLoopScanAp,
+  stopLoopScanAp,
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
   const clientCount = new Set(ap.clients.map(c => c.mac)).size;
@@ -137,6 +140,21 @@ export default function AccessPoint({
             </Button>
 
             <Button
+              variant={loopingAp === ap.bssid ? 'warning' : 'outline-success'}
+              size="sm"
+              onClick={e => {
+                e.stopPropagation();
+                if (loopingAp === ap.bssid) {
+                  stopLoopScanAp();
+                } else {
+                  startLoopScanAp(ap.bssid);
+                }
+              }}
+            >
+              {loopingAp === ap.bssid ? 'Stop ∞' : '∞ AP'}
+            </Button>
+
+            <Button
               variant="outline-secondary"
               size="sm"
               title="Client-Graph anzeigen"
@@ -178,6 +196,9 @@ export default function AccessPoint({
         )}
         {ap.bssid === deauthBssid && isInfinite && (
           <div className="text-end small text-muted">Unendlicher Deauth läuft…</div>
+        )}
+        {loopingAp === ap.bssid && (
+          <div className="text-end small text-muted">Unendlicher AP-Scan läuft…</div>
         )}
         {isCracking && (
           <div className="text-end small text-muted">Cracking läuft…</div>
