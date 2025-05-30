@@ -191,7 +191,7 @@ export default function ScanOverviewPage() {
 
       // Danach Loop starten
       const loop = async () => {
-        const duration = 10;
+        const duration = 90;
 
         try {
           const appendResp = await api.post('/scan/append', {

@@ -105,7 +105,7 @@ export default function ScanDetailPage() {
 
       {loopingRef.current && scanIdRef.current === scan.id && (
         <Alert variant="warning" className="d-flex justify-content-between align-items-center">
-          <div>Unendlicher WiFi-Scan läuft. Bitte diese Seite geöffnet lassen.</div>
+          <div>Unendlicher WiFi-Scan läuft. <strong>Bitte diese Seite geöffnet lassen.</strong></div>
           <Button
             variant="danger"
             size="sm"
@@ -122,7 +122,7 @@ export default function ScanDetailPage() {
       {loopingAp && (
         <Alert variant="warning" className="d-flex justify-content-between align-items-center">
           <div>
-            Unendlicher AP-Scan läuft für <strong>{loopingAp}</strong>. Bitte diese Seite geöffnet lassen.
+            Unendlicher AP-Scan läuft für {loopingAp}. <strong>Bitte diese Seite geöffnet lassen.</strong>
           </div>
           <Button variant="outline-danger" size="sm" onClick={stopLoopScanAp}>
             Stoppen
