@@ -64,9 +64,9 @@ export default function ScanOverview({
               <td>
                 {s.created_at
                   ? new Date(s.created_at).toLocaleString('de-DE', {
-                      day: '2-digit', month: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit'
-                    })
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })
                   : '–'}
                 <br />
                 <small className="text-muted">
@@ -83,21 +83,13 @@ export default function ScanOverview({
               <td>{s.location || <em>kein Ort</em>}</td>
               <td className="text-end">
                 <ButtonGroup className="d-flex gap-1 align-items-center flex-shrink-0 flex-wrap justify-content-end">
-                  {s.filename ? (
+                  {onDownload && (
                     <Button
                       variant="outline-secondary"
                       size="sm"
                       onClick={e => { e.stopPropagation(); onDownload(s); }}
                     >
                       <FiDownload />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      disabled
-                    >
-                      –
                     </Button>
                   )}
                   <Button

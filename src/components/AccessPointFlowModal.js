@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import html2canvas from 'html2canvas';
@@ -6,6 +6,29 @@ import jsPDF from 'jspdf';
 import './AccessPointFlowModal.css';
 
 export default function AccessPointFlowModal({ show, onHide, ap }) {
+  // Dedupe clients by MAC and merge probed_essids
+  const uniqueClients = useMemo(() => {
+    const map = new Map();
+    (ap.clients || []).forEach(c => {
+      if (!map.has(c.mac)) {
+        map.set(c.mac, {
+          ...c,
+          probed_essids: Array.isArray(c.probed_essids) ? c.probed_essids : (c.probed_essids ? [c.probed_essids] : [])
+        });
+      } else {
+        const existing = map.get(c.mac);
+        // update last_seen
+        if (new Date(c.last_seen) > new Date(existing.last_seen)) existing.last_seen = c.last_seen;
+        // vendor
+        if (!existing.vendor && c.vendor) existing.vendor = c.vendor;
+        // merge probed_essids
+        const merged = new Set([...(existing.probed_essids || []), ...(Array.isArray(c.probed_essids) ? c.probed_essids : [c.probed_essids])]);
+        existing.probed_essids = Array.from(merged);
+      }
+    });
+    return Array.from(map.values());
+  }, [ap.clients]);
+
   const containerRef = useRef();
 
   const handleDownloadPDF = async () => {
@@ -13,16 +36,13 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
     const canvas = await html2canvas(containerRef.current, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: 'a4' });
-
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
     const width = canvas.width * ratio;
     const height = canvas.height * ratio;
-
     const x = (pageWidth - width) / 2;
     const y = (pageHeight - height) / 2;
-
     pdf.addImage(imgData, 'PNG', x, y, width, height);
     pdf.save(`${ap.essid || ap.bssid}_diagramm.pdf`);
   };
@@ -59,7 +79,7 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
                 <strong>Channel:</strong> {ap.channel} &nbsp;|&nbsp;
                 <strong>Power:</strong> {ap.power ?? '–'} dBm &nbsp;|&nbsp;
                 <strong>Privacy:</strong> {ap.privacy || '–'} &nbsp;|&nbsp;
-                <strong>Clients:</strong> {ap.clients?.length ?? 0}
+                <strong>Clients:</strong> {uniqueClients.length}
               </div>
               {ap.cracked_password && (
                 <div className="ap-stats-row">
@@ -70,7 +90,7 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
           </div>
 
           <div className="clients-grid-multicolumn">
-            {chunkClients(ap.clients || []).map((column, colIndex) => (
+            {chunkClients(uniqueClients).map((column, colIndex) => (
               <div key={colIndex} className="clients-column">
                 {column.map(client => (
                   <div key={client.mac} className="client-box">
@@ -80,6 +100,13 @@ export default function AccessPointFlowModal({ show, onHide, ap }) {
                     <div className="client-packets">Packets: {client.packets ?? '–'}</div>
                     {client.is_camera && (
                       <div className="client-camera">📷 Überwachungsgerät erkannt</div>
+                    )}
+                    {client.probed_essids && client.probed_essids.length > 0 && (
+                      <div className="client-probed">
+                        {client.probed_essids.map((essid, i) => (
+                          <div key={i} className="client-probed-essid">{essid}</div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}

@@ -5,6 +5,7 @@ import Collapse from 'react-bootstrap/Collapse';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ProgressBar from 'react-bootstrap/ProgressBar';
+import Spinner from 'react-bootstrap/Spinner';
 import {
   FiAlertTriangle,
   FiWifiOff,
@@ -40,10 +41,14 @@ export default function AccessPoint({
   stopDeauth,
   renderCrackButton,
   isCracking,
-  scanMeta
+  scanMeta,
+  loopingAp,
+  startLoopScanAp,
+  stopLoopScanAp,
+  deauthTargetKey,
 }) {
   const hasCam = ap.clients.some(c => c.is_camera);
-  const clientCount = ap.clients.length;
+  const clientCount = new Set(ap.clients.map(c => c.mac)).size;
 
   const handshakeCount = ap.clients.reduce((count, c) => {
     const key = `${ap.bssid}|${c.mac}`;
@@ -136,16 +141,18 @@ export default function AccessPoint({
               <FiRefreshCw />
             </Button>
 
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={e => {
-                e.stopPropagation();
-                toggleOpen(ap.bssid);
-              }}
-            >
-              {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
-            </Button>
+            {loopingAp === ap.bssid && (
+              <Button
+                variant="warning"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation();
+                  stopLoopScanAp();
+                }}
+              >
+                Stop ∞
+              </Button>
+            )}
 
             <Button
               variant="outline-secondary"
@@ -158,41 +165,74 @@ export default function AccessPoint({
             >
               <FiBarChart2 />
             </Button>
+
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={e => {
+                e.stopPropagation();
+                toggleOpen(ap.bssid);
+              }}
+            >
+              {openMap[ap.bssid] ? <FiChevronUp /> : <FiChevronDown />}
+            </Button>
           </ButtonGroup>
 
         </div>
 
-        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (
-          <ProgressBar
-            now={deauthProgress}
-            animated
-            striped
-            variant="danger"
-            className="mt-2"
-            style={{ height: '4px', borderRadius: '2px' }}
-            label={`${Math.round(deauthProgress)}%`}
-          />
-        )}
-        {ap.bssid === deauthBssid && deauthProgress > 0 && deauthProgress < 100 && !isInfinite && (
-          <div className="text-end small text-muted">Deauth läuft…</div>
-        )}
-        {ap.bssid === deauthBssid && isInfinite && (
-          <div className="text-end small text-muted">Unendlicher Deauth läuft…</div>
+        {deauthTargetKey &&
+          infiniteDeauths.has(deauthTargetKey) &&
+          deauthTargetKey.startsWith(`${ap.bssid}|`) && (
+            <div className="d-flex justify-content-end align-items-center gap-2 text-muted small mt-2">
+              <span>Unendlicher Deauth läuft…</span>
+              <Spinner animation="border" size="sm" variant="danger" />
+            </div>
+          )}
+
+
+        {deauthTargetKey &&
+          deauthTargetKey.startsWith(`${ap.bssid}|`) &&
+          !infiniteDeauths.has(deauthTargetKey) &&
+          deauthProgress > 0 &&
+          deauthProgress < 100 && (
+            <>
+              <ProgressBar
+                now={deauthProgress}
+                animated
+                striped
+                variant="danger"
+                className="mt-2"
+                style={{ height: '4px', borderRadius: '2px' }}
+                label={`${Math.round(deauthProgress)}%`}
+              />
+              <div className="text-end small text-muted">Deauth läuft…</div>
+            </>
+          )}
+
+
+        {loopingAp === ap.bssid && (
+          <div className="text-end small text-muted">Unendlicher AP-Scan läuft…</div>
         )}
         {isCracking && (
           <div className="text-end small text-muted">Cracking läuft…</div>
         )}
 
 
-        {rescanStartTime !== null && rescanBssid === ap.bssid && rescanProgress < 100 && (
-          <ProgressBar
-            now={rescanProgress}
-            animated
-            striped
-            className="mt-2"
-            style={{ height: '4px', borderRadius: '2px' }}
-          />
-        )}
+        {rescanStartTime !== null &&
+          ap.bssid === rescanBssid &&
+          rescanProgress < 100 && (
+            <>
+              <ProgressBar
+                now={rescanProgress}
+                animated
+                striped
+                className="mt-2"
+                style={{ height: '4px', borderRadius: '2px' }}
+                variant="info"
+              />
+              <div className="text-end small text-muted">Rescan läuft…</div>
+            </>
+          )}
       </Card.Header>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>

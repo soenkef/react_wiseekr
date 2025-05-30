@@ -6,11 +6,14 @@ import Body from '../components/Body';
 import RangeSlider from 'react-bootstrap-range-slider';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import ProgressBar from 'react-bootstrap/ProgressBar';
+import Spinner from 'react-bootstrap/Spinner';
 import { useNavigate } from 'react-router-dom';
 import { useFlash } from '../contexts/FlashProvider';
 import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { handleDownloadAll } from '../utils/download';
+import { useScanLoop } from '../contexts/ScanLoopProvider';
+
 
 // Neue Komponente importieren
 import ScanOverview from '../components/ScanOverview';
@@ -23,13 +26,19 @@ export default function ScanOverviewPage() {
   const [showNewScanModal, setShowNewScanModal] = useState(false);
   const [infinite, setInfinite] = useState(false);
   const [newScan, setNewScan] = useState({ description: '', location: '', duration: 30 });
-  const [scanOutput, setScanOutput] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const { user } = useUser();
   const navigate = useNavigate();
   const flash = useFlash();
   const api = useApi();
+  const [scanOutput, setScanOutput] = useState('');
+
+
+  // Loop state
+
+  const { loopingRef, scanIdRef } = useScanLoop();
+
 
   // für die Fortschrittsanzeige
   const [progress, setProgress] = useState(0);
@@ -47,7 +56,11 @@ export default function ScanOverviewPage() {
   const loadScans = useCallback(async () => {
     const response = await api.get('/scans');
     if (response.ok) {
-      setScans(response.body);
+      // Duplikate nach ID entfernen
+      const unique = Array.from(
+        new Map(response.body.map(scan => [scan.id, scan])).values()
+      );
+      setScans(unique);
     } else {
       flash(response.body?.error || 'Fehler beim Laden der Scans', 'danger');
     }
@@ -105,45 +118,129 @@ export default function ScanOverviewPage() {
     navigate(`/scan/${id}`);
   };
 
-  const handleNewScanSubmit = async () => {
-    const duration = infinite ? 600 : newScan.duration;
+  // Einzel-Scan oder Append
+  const executeScan = useCallback(async (duration, isFirst) => {
     setScanDuration(duration);
     setScanStart(Date.now());
     setProgress(0);
-    setShowNewScanModal(false);
-    flash('Scan wurde gestartet. Bitte habe etwas Geduld.', 'success');
     setImporting(true);
 
     try {
-      const payload = { duration, description: newScan.description, location: newScan.location };
-      const response = await api.post('/scan/start', payload);
+      let resp;
+      if (isFirst) {
+        // erster Aufruf: lege neuen Scan an
+        resp = await api.post('/scan/start', {
+          duration,
+          description: newScan.description,
+          location: newScan.location,
+        });
 
-      if (!response.ok) {
-        if (response.status === 400) {
-          flash(response.body.error, 'warning');
-        } else {
-          flash(response.body.error || 'Scan fehlgeschlagen.', 'danger');
+        if (resp.ok) {
+          const id = resp.body.scan_id;
+          scanIdRef.current = id;
+          // sofort zur Detailseite weiterleiten
+          navigate(`/scan/${id}`);
         }
-        setImporting(false);
-        setScanStart(null);
-        setProgress(0);
-        return;
+      } else {
+        // alle weiteren: hänge an bestehenden Scan dran
+        resp = await api.post('/scan/append', {
+          scan_id: scanIdRef.current,
+          duration,
+        });
       }
 
-      const { output } = response.body;
-      setScanOutput(output || 'Scan abgeschlossen.');
-      flash('Scan erfolgreich', 'success');
-      await loadScans();
-
+      if (!resp.ok) {
+        flash(resp.body?.error || 'Scan fehlgeschlagen', 'danger');
+        loopingRef.current = false;
+        scanIdRef.current = null;
+      } else {
+        await loadScans();
+      }
     } catch {
-      flash('Netzwerkfehler beim Starten des Scans.', 'danger');
-      setScanOutput('Fehler beim Abrufen des Scan-Ergebnisses.');
+      flash('Netzwerkfehler beim Scan', 'danger');
+      loopingRef.current = false;
+      scanIdRef.current = null;
     } finally {
       setImporting(false);
       setScanStart(null);
       setProgress(100);
-      setNewScan({ description: '', location: '', duration });
-      setInfinite(false);
+    }
+  }, [api, flash, loadScans, newScan, navigate, scanIdRef, loopingRef]);
+
+  // Loop starten / stoppen
+  const startLoop = async () => {
+    setShowNewScanModal(false);
+    loopingRef.current = true;
+
+    try {
+      // Nur Scan-Datensatz erstellen
+      const createResp = await api.post('/scan/create', {
+        description: newScan.description,
+        location: newScan.location,
+        duration: 0,          // ✅ Bei unendlichem Scan: 0
+        infinite: true        // ✅ optional, falls du das im Backend brauchst
+      });
+
+      if (!createResp.ok) throw new Error(createResp.body?.error || 'Erstellung fehlgeschlagen');
+
+      const id = createResp.body.scan_id;
+      scanIdRef.current = id;
+
+      // ⏩ Sofort weiterleiten
+      navigate(`/scan/${id}`);
+
+      // Danach Loop starten
+      const loop = async () => {
+        const duration = 90;
+
+        try {
+          const appendResp = await api.post('/scan/append', {
+            scan_id: scanIdRef.current,
+            duration,
+          });
+
+          if (!appendResp.ok) {
+            throw new Error(appendResp.body?.error || 'Append fehlgeschlagen');
+          }
+
+          await loadScans();
+        } catch (err) {
+          flash(err.message || 'Fehler im Loop', 'danger');
+          loopingRef.current = false;
+          scanIdRef.current = null;
+          return;
+        }
+
+        if (loopingRef.current) {
+          setTimeout(loop, duration * 1000);
+        }
+      };
+
+      loop();
+
+    } catch (err) {
+      flash(err.message || 'Scanfehler', 'danger');
+      loopingRef.current = false;
+      scanIdRef.current = null;
+    }
+  };
+
+
+
+  const stopLoop = () => {
+    loopingRef.current = false;
+    scanIdRef.current = null;
+    setScanStart(null);
+    setProgress(0);
+    flash('Scan wird beendet – das kann bis zu 90 Sekunden dauern. Bitte diese Seite geöffnet lassen.', 'warning');
+  };
+
+  const handleNewScanSubmit = () => {
+    if (infinite) {
+      startLoop();
+    } else {
+      setShowNewScanModal(false);
+      executeScan(newScan.duration, true);
     }
   };
 
@@ -152,7 +249,6 @@ export default function ScanOverviewPage() {
     setEditValues({ description: scan.description || '', location: scan.location || '' });
     setShowEditModal(true);
   };
-
   const submitEdit = async () => {
     const resp = await api.put(`/scans/${editingScan.id}`, editValues);
     if (resp.ok) {
@@ -175,14 +271,14 @@ export default function ScanOverviewPage() {
       scan.access_points_count?.toString().includes(q)
     );
   });
-
   const sortedScans = useMemo(() => {
     const list = [...filtered];
     const { field, asc } = sortConfig;
     list.sort((a, b) => {
       let va = a[field], vb = b[field];
       if (field === 'created_at') {
-        va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime();
+        va = new Date(a.created_at).getTime();
+        vb = new Date(b.created_at).getTime();
       }
       if (typeof va === 'string') va = va.toLowerCase();
       if (typeof vb === 'string') vb = vb.toLowerCase();
@@ -198,11 +294,8 @@ export default function ScanOverviewPage() {
       c.field === field ? { field, asc: !c.asc } : { field, asc: true }
     );
   };
+  const headerArrow = field => (sortConfig.field !== field ? '' : (sortConfig.asc ? ' ↑' : ' ↓'));
 
-  const headerArrow = field => {
-    if (sortConfig.field !== field) return '';
-    return sortConfig.asc ? ' ↑' : ' ↓';
-  };
 
   return (
     <Body>
@@ -216,30 +309,48 @@ export default function ScanOverviewPage() {
                 Alle Daten löschen
               </Button>
             )}
-            <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
-              Scan starten
-            </Button>
+            {infinite && loopingRef.current ? (
+              <Button
+                variant="warning"
+                onClick={stopLoop}
+                disabled={!loopingRef.current} // ← nur deaktivieren, wenn nicht im Loop
+              >
+                Stop ∞
+              </Button>
+            ) : (
+              <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
+                Scan starten
+              </Button>
+            )}
           </div>
 
-          {/* Progressbar: auf XS immer volle Breite unter den Buttons, ab SM ganz normal links daneben */}
+          {/* Progress / Spinner */}
           {scanStart !== null && (
-            <>
-              {/* mobile-only */}
-              <div className="w-100 d-block d-sm-none mt-2">
-                <small>Scan läuft</small>
-                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
-              </div>
-              {/* desktop-only */}
-              <div className="d-none d-sm-block text-center ms-2" style={{ minWidth: 160 }}>
-                <small>Scan läuft</small>
-                <ProgressBar now={progress} label={`${Math.round(progress)} %`} animated striped />
-              </div>
-            </>
+            <div className="mb-3 text-center">
+              {infinite && loopingRef.current ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span>Scan läuft (∞ Loop)</span>
+                </>
+              ) : (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span>Scan läuft ({scanDuration}s)</span>
+                  <ProgressBar
+                    animated
+                    striped
+                    now={progress}
+                    label={`${Math.round(progress)} %`}
+                    className="mt-2"
+                  />
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-            {/* Scan-Übersicht als Komponente */}
+      {/* Scan-Übersicht als Komponente */}
       <ScanOverview
         scans={sortedScans}
         search={search}
@@ -251,6 +362,10 @@ export default function ScanOverviewPage() {
         onEdit={openEditModal}
         onDownload={s => handleDownloadAll(s, api.base_url, flash)}
       />
+
+      {/* Zigbee-Übersicht 
+      <ZigbeeScanOverview />
+      */}
 
       {/* Delete Confirmation */}
       <Modal show={showDeleteModal} onHide={cancelDelete} centered>
@@ -282,9 +397,7 @@ export default function ScanOverviewPage() {
 
       {/* New Scan Modal */}
       <Modal show={showNewScanModal} onHide={() => setShowNewScanModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Neuen Scan starten</Modal.Title>
-        </Modal.Header>
+        <Modal.Header closeButton><Modal.Title>Neuen Scan starten</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
@@ -292,7 +405,7 @@ export default function ScanOverviewPage() {
               <Form.Control
                 type="text"
                 value={newScan.description}
-                onChange={e => setNewScan({ ...newScan, description: e.target.value })}
+                onChange={e => setNewScan(v => ({ ...v, description: e.target.value }))}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -300,30 +413,29 @@ export default function ScanOverviewPage() {
               <Form.Control
                 type="text"
                 value={newScan.location}
-                onChange={e => setNewScan({ ...newScan, location: e.target.value })}
+                onChange={e => setNewScan(v => ({ ...v, location: e.target.value }))}
               />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>
-                Dauer ({infinite ? '∞ unendlich' : `${newScan.duration} Sekunden`})
+                Dauer ({infinite ? '∞' : `${newScan.duration} Sekunden`})
               </Form.Label>
-              <RangeSlider
-                value={infinite ? 600 : newScan.duration}
-                onChange={e => setNewScan({ ...newScan, duration: parseInt(e.target.value) })}
-                min={10} max={600} step={10}
-                disabled={infinite}
-                tooltip="off"
-                className="mb-2"
-              />
+              {!infinite && (
+                <RangeSlider
+                  value={newScan.duration}
+                  onChange={e => setNewScan(v => ({ ...v, duration: parseInt(e.target.value) }))}
+                  min={10} max={600} step={10}
+                  tooltip="off"
+                  className="mb-2"
+                />
+              )}
               <Form.Check
-                type="checkbox"
-                label="Unendlich"
+                type="switch"
+                id="switch-infinite"
+                label="Unendlich (Loop)"
                 checked={infinite}
                 onChange={e => setInfinite(e.target.checked)}
               />
-              <Form.Text className="text-muted">
-                Wähle zwischen 10 Sek. und 10 Min. oder unendlich.
-              </Form.Text>
             </Form.Group>
           </Form>
         </Modal.Body>

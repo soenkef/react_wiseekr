@@ -5,16 +5,16 @@ import RangeSlider from 'react-bootstrap-range-slider';
 
 export function DeauthModal({
   show,
-  onHide,           // schließt das Modal
-  options,          // { packets, duration, infinite }
-  onChangeOptions,  // aktualisiert options im Parent
-  onSubmit,         // führt den API-Call aus
+  onHide,
+  options,
+  onChangeOptions,
+  onSubmit,
 }) {
   const { packets, duration, infinite } = options;
 
   const handleClick = () => {
-    onHide();        // Modal schließen
-    onSubmit();      // dann Deauth im Hintergrund starten
+    onHide();
+    onSubmit();
   };
 
   return (
@@ -40,28 +40,32 @@ export function DeauthModal({
               }
             />
             <Form.Check
-              className="mt-2"
-              type="checkbox"
-              label="Unendlich"
+              className="mt-3"
+              type="switch"
+              id="deauth-infinite-switch"
+              label="Unendlicher Deauth (∞)"
               checked={infinite}
               onChange={e =>
                 onChangeOptions({ ...options, infinite: e.target.checked })
               }
             />
           </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Dauer ({duration} Sekunden)</Form.Label>
-            <RangeSlider
-              min={10}
-              max={600}
-              step={1}
-              value={duration}
-              tooltip="off"
-              onChange={e =>
-                onChangeOptions({ ...options, duration: +e.target.value })
-              }
-            />
-          </Form.Group>
+
+          {!infinite && (
+            <Form.Group className="mb-3">
+              <Form.Label>Dauer ({duration} Sekunden)</Form.Label>
+              <RangeSlider
+                min={10}
+                max={600}
+                step={1}
+                value={duration}
+                tooltip="off"
+                onChange={e =>
+                  onChangeOptions({ ...options, duration: +e.target.value })
+                }
+              />
+            </Form.Group>
+          )}
         </Form>
       </Modal.Body>
       <Modal.Footer>
@@ -69,23 +73,26 @@ export function DeauthModal({
           Abbrechen
         </Button>
         <Button variant="danger" onClick={handleClick}>
-          Deauth starten
+          {infinite ? '∞ Deauth starten' : 'Deauth starten'}
         </Button>
       </Modal.Footer>
     </Modal>
   );
 }
 
+
 export function RescanModal({
   show,
   onHide,
-  options,      
+  options,
   onChangeOptions,
   onSubmit,
+  isLooping,
+  onStopLoop
 }) {
-  const { description, duration } = options;
+  const { description, duration, infinite } = options;
 
-  const handleClick = () => {
+  const handleSubmit = () => {
     onHide();
     onSubmit();
   };
@@ -107,28 +114,46 @@ export function RescanModal({
               }
             />
           </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Dauer ({duration} Sekunden)</Form.Label>
-            <RangeSlider
-              min={1}
-              max={300}
-              step={1}
-              value={duration}
-              tooltip="off"
-              onChange={e =>
-                onChangeOptions({ ...options, duration: +e.target.value })
-              }
-            />
-          </Form.Group>
+
+          {!infinite && (
+            <Form.Group className="mb-3">
+              <Form.Label>Dauer ({duration} Sekunden)</Form.Label>
+              <RangeSlider
+                min={10}
+                max={300}
+                step={10}
+                value={duration}
+                tooltip="off"
+                onChange={e =>
+                  onChangeOptions({ ...options, duration: +e.target.value })
+                }
+              />
+            </Form.Group>
+          )}
+
+          <Form.Check
+            type="switch"
+            id="rescan-infinite-switch"
+            label="Unendlicher Scan (∞)"
+            className="mb-3"
+            checked={infinite}
+            onChange={e =>
+              onChangeOptions({ ...options, infinite: e.target.checked })
+            }
+          />
         </Form>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Abbrechen
-        </Button>
-        <Button variant="success" onClick={handleClick}>
-          Rescan starten
-        </Button>
+        <Button variant="secondary" onClick={onHide}>Abbrechen</Button>
+        {infinite && isLooping ? (
+          <Button variant="warning" onClick={() => { onHide(); onStopLoop(); }}>
+            ∞ Scan stoppen
+          </Button>
+        ) : (
+          <Button variant="success" onClick={handleSubmit}>
+            {infinite ? '∞ Scan starten' : 'Rescan starten'}
+          </Button>
+        )}
       </Modal.Footer>
     </Modal>
   );

@@ -33,37 +33,36 @@ export default function ScanHeader({ scan, onDownload, onUpdate }) {
             Scan am{' '}
             {createdDate
               ? createdDate.toLocaleString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
+                //timeZone: 'UTC',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
               : '–'}{' '}
             (<TimeAgo isoDate={createdDate} />)
           </h5>
         </div>
         <div className="d-flex align-items-center gap-2">
           <Button
-            variant="light"
-            size="sm"
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Einblenden' : 'Ausblenden'}
-          >
-            {collapsed ? <FiChevronDown /> : <FiChevronUp />}
-          </Button>
-
-          <Button
             variant="outline-primary"
             size="sm"
             onClick={() => setEditMode(true)}
             disabled={editMode}
           >
-            <FiEdit className="me-1" /> Bearbeiten
+            <FiEdit className="me-1" />
           </Button>
           <Button variant="outline-secondary" size="sm" onClick={onDownload}>
             <FiDownload className="me-1" />
-            CSV
+          </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? 'Einblenden' : 'Ausblenden'}
+          >
+            {collapsed ? <FiChevronDown /> : <FiChevronUp />}
           </Button>
         </div>
       </Card.Header>

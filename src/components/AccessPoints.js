@@ -12,7 +12,13 @@ import { useFlash } from '../contexts/FlashProvider';
 import { DeauthModal, RescanModal } from './Modals';
 import AccessPoint from './AccessPoint';
 
-export default function AccessPoints({ scan, onRescanComplete }) {
+export default function AccessPoints({
+  scan,
+  onRescanComplete,
+  loopingAp,
+  startLoopScanAp,
+  stopLoopScanAp
+}) {
   const api = useApi();
   const flash = useFlash();
   const scanId = scan.id;
@@ -31,14 +37,21 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const [deauthBssid, setDeauthBssid] = useState(null);
 
   const [showRescanModal, setShowRescanModal] = useState(false);
-  const [rescanOptions, setRescanOptions] = useState({ description: '', duration: 30 });
-  const [rescanBssid, setRescanBssid] = useState(null);
+  const [rescanOptions, setRescanOptions] = useState({
+    description: '',
+    duration: 90,
+    infinite: false
+  }); const [rescanBssid, setRescanBssid] = useState(null);
   const [rescanStartTime, setRescanStartTime] = useState(null);
   const [rescanProgress, setRescanProgress] = useState(0);
   const openRescan = ap => {
     setRescanBssid(ap);
+    setRescanOptions({ description: '', duration: 90, infinite: false });
     setShowRescanModal(true);
   };
+
+  const [deauthTargetKey, setDeauthTargetKey] = useState(null); // z. B. 'bssid|mac' oder 'bssid|AP'
+
 
   const [cracking, setCracking] = useState(new Set());
 
@@ -188,24 +201,55 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   const sortedAPs = useMemo(() => {
     const list = [...filteredAPs];
     const { field, asc } = apSort;
+
     return list.sort((a, b) => {
-      let av = field === 'last_seen' ? new Date(a.last_seen || 0).getTime() : field === 'clients' ? a.clients.length : a[field] ?? '';
-      let bv = field === 'last_seen' ? new Date(b.last_seen || 0).getTime() : field === 'clients' ? b.clients.length : b[field] ?? '';
-      return (av < bv ? -1 : av > bv ? 1 : 0) * (asc ? 1 : -1);
+      let av, bv;
+
+      if (field === 'power') {
+        // Wenn power === -1, behandeln wir es als schlechtestmöglichen Wert
+        const normalizePower = v => (v === -1 || v == null ? Number.NEGATIVE_INFINITY : v);
+        av = normalizePower(a.power);
+        bv = normalizePower(b.power);
+      } else if (field === 'last_seen') {
+        av = new Date(a.last_seen || 0).getTime();
+        bv = new Date(b.last_seen || 0).getTime();
+      } else if (field === 'clients') {
+        av = a.clients.length;
+        bv = b.clients.length;
+      } else {
+        av = a[field] ?? '';
+        bv = b[field] ?? '';
+        if (typeof av === 'string') av = av.toLowerCase();
+        if (typeof bv === 'string') bv = bv.toLowerCase();
+      }
+
+      if (av < bv) return -1 * (asc ? 1 : -1);
+      if (av > bv) return 1 * (asc ? 1 : -1);
+      return 0;
     });
   }, [filteredAPs, apSort]);
+
 
   const openDeauth = (ap, client = null) => {
     setSelectedTarget({ ap, client });
     setDeauthBssid(ap);
+    setDeauthTargetKey(`${ap}|${client || 'AP'}`); // ✅ DAS FEHLTE
     setShowDeauthModal(true);
   };
 
   const submitRescan = async () => {
+    setRescanBssid(rescanBssid);
     setShowRescanModal(false);
+
+    if (rescanOptions.infinite) {
+      startLoopScanAp(rescanBssid, rescanOptions.duration || 90);
+      return;
+    }
+
     setRescanStartTime(Date.now());
     setRescanProgress(0);
     flash('Rescan gestartet...', 'warning');
+
     try {
       const resp = await api.post(`/scans/${scanId}/scan_ap`, {
         bssid: rescanBssid,
@@ -222,6 +266,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
   };
 
 
+
   const submitDeauth = async () => {
     const { ap, client } = selectedTarget;
     const key = `${ap}|${client || 'AP'}`;
@@ -229,7 +274,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     if (deauthOptions.infinite) setInfiniteDeauths(prev => new Set(prev).add(key));
     setDeauthStartTime(Date.now());
     setDeauthProgress(0);
-    flash('Deauth startet...', 'warning');
+    flash('Deauth startet. Bitte diese Seite geöffnet lassen', 'warning');
 
     const common = {
       scan_id: scanId,
@@ -244,7 +289,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
     try {
       const resp = await api.post(endpoint, payload);
       if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
-      flash('Deauth erfolgreich gestartet', 'success');
+      flash('Deauth erfolgreich gestartet. Bitte diese Seite geöffnet lassen.', 'success');
       if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
     } catch (err) {
       flash(err.message, 'danger');
@@ -271,6 +316,7 @@ export default function AccessPoints({ scan, onRescanComplete }) {
       setDeauthStartTime(null);
       setDeauthBssid(null);
       setDeauthOptions(prev => ({ ...prev, infinite: false }));
+      setDeauthTargetKey(null);
     } else {
       flash(resp.body?.error || 'Stop failed', 'danger');
     }
@@ -297,7 +343,19 @@ export default function AccessPoints({ scan, onRescanComplete }) {
 
   const renderDeauthStatus = (ap, client) => {
     const key = `${ap}|${client || 'AP'}`;
-    return activeDeauths[key] ? <Spinner animation="border" size="sm" variant="danger" className="me-1" /> : null;
+    const isInfinite = infiniteDeauths.has(key);
+    const isActive = activeDeauths[key];
+
+    if (isInfinite) {
+      return (
+        <span className="d-flex align-items-center text-danger me-2">
+          <Spinner animation="border" size="sm" />
+          <span className="ms-1 small">∞ Deauth</span>
+        </span>
+      );
+    }
+
+    return isActive ? <Spinner animation="border" size="sm" variant="danger" className="me-1" /> : null;
   };
 
   const renderHandshakeLink = (b, c) => {
@@ -376,10 +434,28 @@ export default function AccessPoints({ scan, onRescanComplete }) {
           stopDeauth={stopDeauth}
           isCracking={cracking.has(`${ap.bssid}|AP`)}
           scanMeta={{ description: scan.description, location: scan.location }}
+          loopingAp={loopingAp}
+          startLoopScanAp={startLoopScanAp}
+          stopLoopScanAp={stopLoopScanAp}
+          deauthTargetKey={deauthTargetKey}
         />
       ))}
       <DeauthModal show={showDeauthModal} onHide={() => setShowDeauthModal(false)} options={deauthOptions} onChangeOptions={setDeauthOptions} onSubmit={submitDeauth} />
-      <RescanModal show={showRescanModal} onHide={() => setShowRescanModal(false)} options={rescanOptions} onChangeOptions={setRescanOptions} onSubmit={submitRescan} />
+      <RescanModal
+        show={showRescanModal}
+        onHide={() => {
+          setShowRescanModal(false);
+          // Nur zurücksetzen, wenn kein Rescan aktiv
+          if (rescanStartTime === null) {
+            setRescanBssid(null);
+          }
+        }}
+        options={rescanOptions}
+        onChangeOptions={setRescanOptions}
+        onSubmit={submitRescan}
+        isLooping={loopingAp === rescanBssid}
+        onStopLoop={stopLoopScanAp}
+      />
     </>
   );
 }
