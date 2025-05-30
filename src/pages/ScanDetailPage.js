@@ -69,7 +69,7 @@ export default function ScanDetailPage() {
   const stopLoopScanAp = () => {
     loopingRefAp.current = false;
     setLoopingAp(null);
-    flash('AP-Scan wird gestoppt – das kann bis zu 90 Sekunden dauern.', 'warning');
+    flash('AP-Scan wird gestoppt. Bitte diese Seite noch für ca. 90 Sekunden geöffnet lassen.', 'warning');
   };
 
   const startLoopScanAp = async (bssid, duration = 90) => {
