@@ -147,6 +147,9 @@ apt  install network-manager
 # netstat install
 sudo apt install net-tools
 
+# uuidgen installieren
+sudo apt install uuid-runtime
+
 
 #################################
 
@@ -479,3 +482,25 @@ LIBUSB_CFLAGS="-I/opt/homebrew/include" \
 
 # Schritt 3: kompilieren
 make
+
+# Zigbee-Stick installieren
+ sudo apt install -y libusb-1.0-0-dev wireshark
+ sudo apt install tshark libusb-1.0-0-dev
+# ohne sudo erlauben
+sudo dpkg-reconfigure wireshark-common
+# Berechtigungen setzen
+sudo visudo -f /etc/sudoers.d/zigbee-scan
+# Inhalt
+www-data ALL=(ALL) NOPASSWD: /usr/bin/python3 /home/amboss/deinprojekt/scripts/zigbee_scan.py
+# WHSNIFF installieren
+sudo apt update
+sudo apt install build-essential libusb-1.0-0-dev git
+git clone https://github.com/homewsn/whsniff.git
+cd whsniff
+make
+sudo make install
+# firmware für sniffer flash mit cc-tool
+https://www.ti.com/tool/PACKET-SNIFFER#downloads
+7z e Setup_SmartRF_Packet_Sniffer_2.18.0.exe
+# über CC-Debugger flashen:
+cc-tool -e -w ../PACKET-SNIFFER/sniffer_fw_cc2531.hex 

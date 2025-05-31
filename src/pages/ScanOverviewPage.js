@@ -13,6 +13,7 @@ import { useApi } from '../contexts/ApiProvider';
 import { useUser } from '../contexts/UserProvider';
 import { handleDownloadAll } from '../utils/download';
 import { useScanLoop } from '../contexts/ScanLoopProvider';
+import ZigbeeScanOverview from '../components/ZigbeeScanOverview';
 
 
 // Neue Komponente importieren
@@ -33,6 +34,13 @@ export default function ScanOverviewPage() {
   const flash = useFlash();
   const api = useApi();
   const [scanOutput, setScanOutput] = useState('');
+
+  const [showZigbeeModal, setShowZigbeeModal] = useState(false);
+  const [zigbeeOptions, setZigbeeOptions] = useState({
+    description: '',
+    location: '',
+    duration: 30,
+  });
 
 
   // Loop state
@@ -289,6 +297,37 @@ export default function ScanOverviewPage() {
     return list;
   }, [filtered, sortConfig]);
 
+  const startZigbeeScan = async () => {
+    setImporting(true);
+    setScanStart(Date.now());
+    setScanDuration(zigbeeOptions.duration);
+
+    try {
+      const resp = await api.post('/scan/zigbee/start', {
+        duration: zigbeeOptions.duration,
+        description: zigbeeOptions.description,
+        location: zigbeeOptions.location,
+        channels: zigbeeOptions.channels || [] // <— hier wichtig
+      });
+
+      if (resp.ok) {
+        flash(`Zigbee-Scan erfolgreich (${resp.body.device_count} Geräte)`, 'success');
+        await loadScans();
+      } else {
+        flash(resp.body?.error || 'Zigbee-Scan fehlgeschlagen', 'danger');
+      }
+    } catch (err) {
+      flash('Fehler beim Zigbee-Scan', 'danger');
+    } finally {
+      setImporting(false);
+      setScanStart(null);
+      setProgress(0);
+    }
+  };
+
+
+
+
   const requestSort = field => {
     setSortConfig(c =>
       c.field === field ? { field, asc: !c.asc } : { field, asc: true }
@@ -318,10 +357,20 @@ export default function ScanOverviewPage() {
                 Stop ∞
               </Button>
             ) : (
-              <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
-                Scan starten
-              </Button>
+              <>
+                <Button variant="success" onClick={() => setShowNewScanModal(true)} disabled={importing}>
+                  Scan starten
+                </Button>
+
+                {/* ✅ Zigbee-Scan-Button */}
+                <Button variant="info" onClick={() => setShowZigbeeModal(true)} disabled={importing}>
+                  Zigbee-Scan
+                </Button>
+
+              </>
+
             )}
+
           </div>
 
           {/* Progress / Spinner */}
@@ -363,9 +412,97 @@ export default function ScanOverviewPage() {
         onDownload={s => handleDownloadAll(s, api.base_url, flash)}
       />
 
-      {/* Zigbee-Übersicht 
+      {/* Zigbee-Übersicht   */}
       <ZigbeeScanOverview />
-      */}
+
+
+      {/* Zigbee Modal direkt in ScanOverviewPage.js */}
+      <Modal show={showZigbeeModal} onHide={() => setShowZigbeeModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Zigbee-Scan starten</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Beschreibung</Form.Label>
+              <Form.Control
+                type="text"
+                value={zigbeeOptions.description}
+                onChange={e =>
+                  setZigbeeOptions(v => ({ ...v, description: e.target.value }))
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Ort</Form.Label>
+              <Form.Control
+                type="text"
+                value={zigbeeOptions.location}
+                onChange={e =>
+                  setZigbeeOptions(v => ({ ...v, location: e.target.value }))
+                }
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Dauer insgesamt ({zigbeeOptions.duration}s)</Form.Label>
+              <RangeSlider
+                value={zigbeeOptions.duration}
+                onChange={e =>
+                  setZigbeeOptions(v => ({
+                    ...v,
+                    duration: parseInt(e.target.value)
+                  }))
+                }
+                min={10}
+                max={300}
+                step={10}
+                tooltip="off"
+                className="mb-2"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Kanäle auswählen</Form.Label>
+              <Form.Control
+                as="select"
+                multiple
+                value={zigbeeOptions.channels || []}
+                onChange={e => {
+                  const selected = Array.from(e.target.selectedOptions).map(opt => parseInt(opt.value));
+                  setZigbeeOptions(v => ({ ...v, channels: selected }));
+                }}
+                style={{ height: '160px' }}
+              >
+                {Array.from({ length: 16 }, (_, i) => 11 + i).map(channel => (
+                  <option key={channel} value={channel}>
+                    Kanal {channel}
+                  </option>
+                ))}
+              </Form.Control>
+              <Form.Text muted>
+                Halte ⌘ (Mac) oder Strg (Windows) gedrückt, um mehrere auszuwählen.
+              </Form.Text>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowZigbeeModal(false)}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="info"
+            onClick={async () => {
+              setShowZigbeeModal(false); // Modal direkt schließen
+              await startZigbeeScan();   // Scan starten
+            }}
+          >
+            Zigbee-Scan starten
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+
 
       {/* Delete Confirmation */}
       <Modal show={showDeleteModal} onHide={cancelDelete} centered>

@@ -202,7 +202,7 @@ export default function AccessPoint({
                 striped
                 variant="danger"
                 className="mt-2"
-                style={{ height: '4px', borderRadius: '2px' }}
+                style={{ height: '8px', borderRadius: '2px' }}
                 label={`${Math.round(deauthProgress)}%`}
               />
               <div className="text-end small text-muted">Deauth läuft…</div>
@@ -227,7 +227,7 @@ export default function AccessPoint({
                 animated
                 striped
                 className="mt-2"
-                style={{ height: '4px', borderRadius: '2px' }}
+                style={{ height: '8px', borderRadius: '2px' }}
                 variant="info"
               />
               <div className="text-end small text-muted">Rescan läuft…</div>

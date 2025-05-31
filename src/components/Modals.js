@@ -158,3 +158,68 @@ export function RescanModal({
     </Modal>
   );
 }
+
+
+export function ZigbeeScanModal({
+  show,
+  onHide,
+  options,
+  onChangeOptions,
+  onSubmit,
+}) {
+  const { description, location, duration } = options;
+
+  const handleSubmit = () => {
+    onHide();
+    onSubmit();
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Zigbee-Scan starten</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form>
+          <Form.Group className="mb-3">
+            <Form.Label>Beschreibung</Form.Label>
+            <Form.Control
+              type="text"
+              value={description}
+              onChange={e =>
+                onChangeOptions({ ...options, description: e.target.value })
+              }
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Ort</Form.Label>
+            <Form.Control
+              type="text"
+              value={location}
+              onChange={e =>
+                onChangeOptions({ ...options, location: e.target.value })
+              }
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Dauer ({duration} Sekunden)</Form.Label>
+            <RangeSlider
+              min={10}
+              max={300}
+              step={10}
+              value={duration}
+              tooltip="off"
+              onChange={e =>
+                onChangeOptions({ ...options, duration: +e.target.value })
+              }
+            />
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>Abbrechen</Button>
+        <Button variant="info" onClick={handleSubmit}>Zigbee-Scan starten</Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}

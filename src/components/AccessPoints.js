@@ -274,7 +274,7 @@ export default function AccessPoints({
     if (deauthOptions.infinite) setInfiniteDeauths(prev => new Set(prev).add(key));
     setDeauthStartTime(Date.now());
     setDeauthProgress(0);
-    flash('Deauth startet. Bitte diese Seite geöffnet lassen', 'warning');
+    flash('Deauth gestartet. Bitte diese Seite geöffnet lassen', 'warning');
 
     const common = {
       scan_id: scanId,
@@ -289,7 +289,7 @@ export default function AccessPoints({
     try {
       const resp = await api.post(endpoint, payload);
       if (!resp.ok) throw new Error(resp.body?.error || 'Fehler');
-      flash('Deauth erfolgreich gestartet. Bitte diese Seite geöffnet lassen.', 'success');
+      flash('Deauth gestartet. Bitte diese Seite geöffnet lassen.', 'success');
       if (resp.body.file) setHandshakeFiles(prev => ({ ...prev, [key]: resp.body.file }));
     } catch (err) {
       flash(err.message, 'danger');
