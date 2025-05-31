@@ -7,6 +7,9 @@ export default function ZigbeeScanOverview({ scans = [], devices = [], scanDevic
   return (
     <div className="mb-4">
       <h3>Zigbee-Scan Übersicht</h3>
+      {scans.length === 0 && (
+        <div className="text-muted fst-italic mb-3">Keine Zigbee-Geräte gefunden.</div>
+      )}
       {scans.map(scan => (
         <Card className="mb-3" key={scan.id}>
           <Card.Header>

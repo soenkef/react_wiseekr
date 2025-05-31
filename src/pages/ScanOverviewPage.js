@@ -35,13 +35,40 @@ export default function ScanOverviewPage() {
   const api = useApi();
   const [scanOutput, setScanOutput] = useState('');
 
-  const [showZigbeeModal, setShowZigbeeModal] = useState(false);
+const [showZigbeeModal, setShowZigbeeModal] = useState(false);
   const [zigbeeOptions, setZigbeeOptions] = useState({
     description: '',
     location: '',
     duration: 30,
   });
+  const [zigbeeScans, setZigbeeScans] = useState([]);
+  const [zigbeeDevices, setZigbeeDevices] = useState([]);
+  const [zigbeeScanDevices, setZigbeeScanDevices] = useState([]);
+  const [zigbeeScanActive, setZigbeeScanActive] = useState(false);
+  const [zigbeeScanTimeLeft, setZigbeeScanTimeLeft] = useState(0); // Countdown für die verbleibende Zeit
 
+
+  const loadZigbeeData = useCallback(async () => {
+    try {
+      const [devicesRes, scanLinksRes, scansRes] = await Promise.all([
+        api.get('/scan/zigbee/devices'),
+        api.get('/scan/zigbee/scan_devices'),
+        api.get('/scan/zigbee/scans')
+      ]);
+
+      if (scansRes.ok) setZigbeeScans(scansRes.body);
+      if (devicesRes.ok) setZigbeeDevices(devicesRes.body);
+      if (scanLinksRes.ok) setZigbeeScanDevices(scanLinksRes.body);
+
+    } catch (err) {
+      flash('Fehler beim Laden der Zigbee-Daten', 'danger');
+    }
+  }, [api, flash]);
+
+
+  useEffect(() => {
+    loadZigbeeData();
+  }, [loadZigbeeData]);
 
   // Loop state
 
@@ -301,13 +328,18 @@ export default function ScanOverviewPage() {
     setImporting(true);
     setScanStart(Date.now());
     setScanDuration(zigbeeOptions.duration);
+    setZigbeeScanActive(true); // Scan beginnt
+
+    const timeoutId = setTimeout(() => {
+      setZigbeeScanActive(false); // Nach Ablauf: Hinweis ausblenden
+    }, zigbeeOptions.duration * 1000);
 
     try {
       const resp = await api.post('/scan/zigbee/start', {
         duration: zigbeeOptions.duration,
         description: zigbeeOptions.description,
         location: zigbeeOptions.location,
-        channels: zigbeeOptions.channels || [] // <— hier wichtig
+        channels: zigbeeOptions.channels || []
       });
 
       if (resp.ok) {
@@ -315,15 +347,20 @@ export default function ScanOverviewPage() {
         await loadScans();
       } else {
         flash(resp.body?.error || 'Zigbee-Scan fehlgeschlagen', 'danger');
+        clearTimeout(timeoutId);
+        setZigbeeScanActive(false);
       }
     } catch (err) {
       flash('Fehler beim Zigbee-Scan', 'danger');
+      clearTimeout(timeoutId);
+      setZigbeeScanActive(false);
     } finally {
       setImporting(false);
       setScanStart(null);
       setProgress(0);
     }
   };
+
 
 
 
@@ -373,6 +410,13 @@ export default function ScanOverviewPage() {
 
           </div>
 
+          {/* Fortschritt und Spinner */}
+          {zigbeeScanActive && (
+            <div className="alert alert-warning w-100 mb-3">
+              <strong>Zigbee-Scan läuft...</strong> Bitte diese Seite geöffnet lassen, bis der Scan abgeschlossen ist. 
+            </div>
+          )}
+
           {/* Progress / Spinner */}
           {scanStart !== null && (
             <div className="mb-3 text-center">
@@ -413,7 +457,11 @@ export default function ScanOverviewPage() {
       />
 
       {/* Zigbee-Übersicht   */}
-      <ZigbeeScanOverview />
+      <ZigbeeScanOverview
+        scans={zigbeeScans}
+        devices={zigbeeDevices}
+        scanDevices={zigbeeScanDevices}
+      />
 
 
       {/* Zigbee Modal direkt in ScanOverviewPage.js */}
